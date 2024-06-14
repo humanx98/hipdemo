@@ -1,0 +1,13 @@
+Build HIPRT on Windows:
+    1. git lfs fetch
+    2. .\tools\premake5\win\premake5.exe vs2022 --bitcode
+    3. open sln with VS and build in Release
+    4. cd scripts/bitcodes
+    5. python compile.py
+Build HIPRT on Ubuntu:
+    0. git submodule update --init --recursive
+    1. mkdir build
+    2. cmake -DCMAKE_BUILD_TYPE=Release -DBITCODE=ON -DNO_ENCRYPT=ON -S . -B build
+    3. cmake --build build --config Release
+    4. cd scripts/bitcodes
+    5. python compile.py
