@@ -144,7 +144,7 @@ target_compile_options(hiprt_renderer PRIVATE "-Wno-deprecated-declarations")
 set_target_properties(hiprt_renderer PROPERTIES HIP_BIN_DIR "${hiprt_renderer_hip_bin_dir}")
 
 add_custom_command(TARGET hiprt_renderer_link POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${hiprt_HIPFB} ${hiprt_renderer_hip_bin_dir})
 
 add_dependencies(hiprt_renderer_link hiprt_renderer_kernel)

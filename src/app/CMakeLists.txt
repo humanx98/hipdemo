@@ -39,13 +39,8 @@ get_target_property(hip_renderer_hip_bin_dir hip_renderer HIP_BIN_DIR)
 get_target_property(vulkan_spv_bin_dir vulkan SPV_BIN_DIR)
 
 add_custom_command(TARGET hipdemo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${hiprt_renderer_hip_bin_dir} $<TARGET_FILE_DIR:hipdemo>)
-
-add_custom_command(TARGET hipdemo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${hip_renderer_hip_bin_dir} $<TARGET_FILE_DIR:hipdemo>)
-
-add_custom_command(TARGET hipdemo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${vulkan_spv_bin_dir} $<TARGET_FILE_DIR:hipdemo>)
+    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:hipdemo>/hip_spv_bin
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${hiprt_renderer_hip_bin_dir} $<TARGET_FILE_DIR:hipdemo>/hip_spv_bin
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${hip_renderer_hip_bin_dir} $<TARGET_FILE_DIR:hipdemo>/hip_spv_bin
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${vulkan_spv_bin_dir} $<TARGET_FILE_DIR:hipdemo>/hip_spv_bin
+)

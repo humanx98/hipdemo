@@ -694,8 +694,8 @@ VulkanResult vulkan_viewport_create_shader_modules(viewport_ptr self) {
     WwDArray(u8) vert_shader_code = ww_darray_init(self->allocator, u8);
     WwDArray(u8) frag_shader_code = ww_darray_init(self->allocator, u8);
     VulkanResult res = {};
-    if (!ww_read_file_to_darray("./fullscreen_quad.vert.spv", &vert_shader_code)
-        || !ww_read_file_to_darray("./fullscreen_quad.frag.spv", &frag_shader_code)) {
+    if (!ww_read_file_to_darray("hip_spv_bin/fullscreen_quad.vert.spv", &vert_shader_code)
+        || !ww_read_file_to_darray("hip_spv_bin/fullscreen_quad.frag.spv", &frag_shader_code)) {
         res = VULKAN_CHECK(VK_ERROR_INITIALIZATION_FAILED);
         goto failed;
     }

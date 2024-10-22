@@ -80,7 +80,7 @@ RendererResult hip_renderer_init(renderer_ptr self, HipCreationProperties creati
         return res;
     }
 
-    res = HIP_CHECK(hipModuleLoad(&self->module, "hip_renderer.hipfb"));
+    res = HIP_CHECK(hipModuleLoad(&self->module, "hip_spv_bin/hip_renderer.hipfb"));
     if (res.failed) {
         return res;
     }

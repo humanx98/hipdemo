@@ -72,6 +72,58 @@ RendererResult hiprt_renderer_create(HipRTCreationProperties creation_properties
     return res;
 }
 
+RendererResult hiprt_renderer_init(renderer_ptr self, HipRTCreationProperties creation_properties) {
+    *self = (renderer_ptr_impl){
+        .context = {
+            .allocator = creation_properties.allocator,
+        },
+    };
+
+    RendererResult res = HIP_CHECK(hipInit(0));
+    if (res.failed) {
+        return res;
+    }
+
+    res = HIP_CHECK(hipSetDevice(creation_properties.device_index));
+    if (res.failed) {
+        return res;
+    }
+
+    res = HIP_CHECK(hipCtxCreate(&self->context.hip, 0, creation_properties.device_index));
+    if (res.failed) {
+        return res;
+    }
+
+    hipDeviceProp_t props;
+    res = HIP_CHECK(hipGetDeviceProperties(&props, creation_properties.device_index));
+    if (res.failed) {
+        return res;
+    }
+
+    hiprtContextCreationInput ctx_creation_input;
+    if (std::string(props.name).find("NVIDIA") != std::string::npos) {
+        ctx_creation_input.deviceType = hiprtDeviceNVIDIA;
+    } else {
+        ctx_creation_input.deviceType = hiprtDeviceAMD;
+    }
+    ctx_creation_input.ctxt = self->context.hip;
+    ctx_creation_input.device = creation_properties.device_index;
+
+    res = HIPRT_CHECK(hiprtCreateContext(HIPRT_API_VERSION, ctx_creation_input, self->context.hiprt));
+    if (res.failed) {
+        return res;
+    }
+
+    hiprtSetCacheDirPath(self->context.hiprt, "hip_spv_bin");
+    res = HIP_CHECK(hipModuleLoad(&self->module, "hip_spv_bin/hiprt_renderer.hipfb"));
+    if (res.failed) {
+        return res;
+    }
+
+    res = HIP_CHECK(hipModuleGetFunction(&self->kernel_func, self->module, "SceneIntersectionKernel"));
+    return res;
+}
+
 void hiprt_renderer_destroy(renderer_ptr self) {
     assert(self);
     RendererResult res = {};
@@ -155,45 +207,6 @@ RendererResult hiprt_renderer_render(renderer_ptr self) {
             return res;
         }
 
-        vec3 scale = { -1.0f, -2.0f, -3.0f };
-        vec3 offset = { 32.0f, 33.0f, 34.0f };
-
-        hiprtFrameMatrix matrices;
-        matrices.matrix[0][0] = scale.x;
-        matrices.matrix[1][1] = scale.y;
-        matrices.matrix[2][2] = scale.z;
-        matrices.matrix[0][3] = offset.x;
-        matrices.matrix[1][3] = offset.y;
-        matrices.matrix[2][3] = offset.z;
-        matrices.time = 1.0f;
-
-        mat4 translate_mat = mat4_translate(offset.x, offset.y, offset.z);
-        assert(matrices.matrix[0][3] == translate_mat.e[0][3]);
-        assert(matrices.matrix[1][3] == translate_mat.e[1][3]);
-        assert(matrices.matrix[2][3] == translate_mat.e[2][3]);
-
-        assert(matrices.matrix[0][3] == translate_mat.r[0].w);
-        assert(matrices.matrix[1][3] == translate_mat.r[1].w);
-        assert(matrices.matrix[2][3] == translate_mat.r[2].w);
-
-        mat4 scale_mat = mat4_scale(scale.x, scale.y, scale.z);
-        assert(matrices.matrix[0][0] == scale_mat.e[0][0]);
-        assert(matrices.matrix[1][1] == scale_mat.e[1][1]);
-        assert(matrices.matrix[2][2] == scale_mat.e[2][2]);
-
-        // hiprtFrameSRT frame;
-        // frame.translation = make_hiprtFloat3(0.0f, 0.0f, 0.0f);
-        // frame.scale = make_hiprtFloat3(0.5f, 0.5f, 0.5f);
-        // frame.rotation = make_hiprtFloat4(1.0f, 0.0f, 0.0f, 0.0f);
-        // self->scene->scene_input.frameCount = 1;
-        // res = HIP_CHECK(hipMalloc(&self->scene->scene_input.instanceFrames, sizeof(hiprtFrameSRT)));
-        // if (res.failed) {
-        //     return res;
-        // }
-        // res = HIP_CHECK(hipMemcpyHtoD(self->scene->scene_input.instanceFrames, &frame, sizeof(hiprtFrameSRT)));
-        // if (res.failed) {
-        //     return res;
-        // }
         res = HIP_CHECK(hipMalloc(&self->scene->scene_input.instanceTransformHeaders, transform_headers.size() * sizeof(hiprtTransformHeader)));
         if (res.failed) {
             return res;
@@ -280,55 +293,4 @@ RendererResult hiprt_renderer_create_object_instance(renderer_ptr self, const tr
 RendererResult hiprt_renderer_create_triangle_mesh(renderer_ptr self, TriangleMeshCreationProperties creation_properties, TriangleMesh* triangle_mesh) {
     assert(self);
     return hiprt_triangle_mesh_create(self->context, creation_properties, triangle_mesh);
-}
-
-RendererResult hiprt_renderer_init(renderer_ptr self, HipRTCreationProperties creation_properties) {
-    *self = (renderer_ptr_impl){
-        .context = {
-            .allocator = creation_properties.allocator,
-        },
-    };
-
-    RendererResult res = HIP_CHECK(hipInit(0));
-    if (res.failed) {
-        return res;
-    }
-
-    res = HIP_CHECK(hipSetDevice(creation_properties.device_index));
-    if (res.failed) {
-        return res;
-    }
-
-    res = HIP_CHECK(hipCtxCreate(&self->context.hip, 0, creation_properties.device_index));
-    if (res.failed) {
-        return res;
-    }
-
-    hipDeviceProp_t props;
-    res = HIP_CHECK(hipGetDeviceProperties(&props, creation_properties.device_index));
-    if (res.failed) {
-        return res;
-    }
-
-    hiprtContextCreationInput ctx_creation_input;
-    if (std::string(props.name).find("NVIDIA") != std::string::npos) {
-        ctx_creation_input.deviceType = hiprtDeviceNVIDIA;
-    } else {
-        ctx_creation_input.deviceType = hiprtDeviceAMD;
-    }
-    ctx_creation_input.ctxt = self->context.hip;
-    ctx_creation_input.device = creation_properties.device_index;
-
-    res = HIPRT_CHECK(hiprtCreateContext(HIPRT_API_VERSION, ctx_creation_input, self->context.hiprt));
-    if (res.failed) {
-        return res;
-    }
-
-    res = HIP_CHECK(hipModuleLoad(&self->module, "hiprt_renderer.hipfb"));
-    if (res.failed) {
-        return res;
-    }
-
-    res = HIP_CHECK(hipModuleGetFunction(&self->kernel_func, self->module, "SceneIntersectionKernel"));
-    return res;
 }
