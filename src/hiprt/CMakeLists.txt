@@ -52,7 +52,8 @@ foreach(arch ${hip_binaries_arch})
     list(APPEND target_gpus "--offload-arch=${arch}")
 endforeach()
 
-set(hiprt_renderer_bitcode "${CMAKE_CURRENT_BINARY_DIR}/hiprt_renderer.bc")
+set(hiprt_renderer_hip_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/hiprt_renderer_hip_bin")
+set(hiprt_renderer_bitcode "${hiprt_renderer_hip_bin_dir}/hiprt_renderer.bc")
 set(hiprt_renderer_kernel_compile_options
     -O3
     -std=c++17
@@ -70,24 +71,6 @@ set(hiprt_renderer_kernel_compile_options
     ${CMAKE_CURRENT_SOURCE_DIR}/kernels/hiprt_renderer.hip.cpp
     -parallel-jobs=15
     -o ${hiprt_renderer_bitcode})
-
-if(${SKIP_HIPRT_RENDERER_KERNELS_COMPILATION})
-    add_custom_target(
-        hiprt_renderer_kernel
-        COMMAND echo hiprt_renderer_kernel bitecode generating is skipped
-        COMMENT "hiprt_renderer_kernel bitecode generating is skipped"
-    )
-else()
-    add_custom_target(
-        hiprt_renderer_kernel
-        COMMAND  ${HIPCC_EXECUTABLE}  ${hiprt_renderer_kernel_compile_options}
-        COMMENT "hiprt_renderer_kernel bitecode generating"
-    )
-endif()
-
-set(hiprt_renderer_hip_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/hiprt_renderer_hip_bin")
-file(MAKE_DIRECTORY ${hiprt_renderer_hip_bin_dir})
-set(hiprt_renderer_hipfb "${hiprt_renderer_hip_bin_dir}/hiprt_renderer.hipfb")
 set(hiprt_renderer_link_options
     -fgpu-rdc
     --hip-link
@@ -95,20 +78,23 @@ set(hiprt_renderer_link_options
     ${target_gpus}
     ${hiprt_BITCODE}
     ${hiprt_renderer_bitcode}
-    -o ${hiprt_renderer_hipfb}
+    -o ${hiprt_renderer_hip_bin_dir}/hiprt_renderer.hipfb
 )
-
 if(${SKIP_HIPRT_RENDERER_KERNELS_COMPILATION})
     add_custom_target(
-        hiprt_renderer_link
-        COMMAND echo hiprt_renderer_hipfb and hiprt linking is skipped
-        COMMENT "hiprt_renderer_hipfb and hiprt linking is skipped"
+        hiprt_renderer_kernel
+        COMMAND echo Compiling hiprt kernels is skipped
+        COMMENT "Compiling hiprt kernels is skipped"
     )
 else()
     add_custom_target(
-        hiprt_renderer_link
+        hiprt_renderer_kernel
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${hiprt_renderer_hip_bin_dir}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${hiprt_renderer_hip_bin_dir}
+        COMMAND  ${HIPCC_EXECUTABLE}  ${hiprt_renderer_kernel_compile_options}
         COMMAND ${HIP_LINKER_EXECUTABLE} ${hiprt_renderer_link_options}
-        COMMENT "hiprt_renderer_hipfb and hiprt linking"
+        COMMAND ${CMAKE_COMMAND} -E copy ${hiprt_HIPFB} ${hiprt_renderer_hip_bin_dir}
+        COMMENT "Compiling hiprt kernels"
     )
 endif()
 
@@ -129,6 +115,8 @@ set(SOURCES
 )
 
 add_library(hiprt_renderer STATIC ${HEADERS} ${SOURCES})
+add_dependencies(hiprt_renderer hiprt_renderer_kernel)
+
 target_include_directories(hiprt_renderer 
     PUBLIC ${hiprt_INCLUDE_DIR}
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -142,10 +130,3 @@ target_link_libraries(hiprt_renderer
 )
 target_compile_options(hiprt_renderer PRIVATE "-Wno-deprecated-declarations")
 set_target_properties(hiprt_renderer PROPERTIES HIP_BIN_DIR "${hiprt_renderer_hip_bin_dir}")
-
-add_custom_command(TARGET hiprt_renderer_link POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${hiprt_HIPFB} ${hiprt_renderer_hip_bin_dir})
-
-add_dependencies(hiprt_renderer_link hiprt_renderer_kernel)
-add_dependencies(hiprt_renderer hiprt_renderer_link)

@@ -22,8 +22,6 @@ endif()
 set(hip_binaries_arch gfx1030 gfx1031 gfx90c CACHE STRING "AMD HIP architectures to build binaries for")
 
 set(hip_renderer_hip_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/hip_renderer_hip_bin")
-file(MAKE_DIRECTORY ${hip_renderer_hip_bin_dir})
-set(hip_renderer_hipfb "${hip_renderer_hip_bin_dir}/hip_renderer.hipfb")
 set(hip_renderer_kernel_compile_options
     -O3
     -std=c++17
@@ -34,19 +32,21 @@ set(hip_renderer_kernel_compile_options
     -I ${CMAKE_CURRENT_SOURCE_DIR}/kernels/
     -D HIPCC
     -ffast-math
-    -o ${hip_renderer_hipfb})
+    -o ${hip_renderer_hip_bin_dir}/hip_renderer.hipfb)
 
 if(${SKIP_HIP_RENDERER_KERNELS_COMPILATION})
     add_custom_target(
         hip_renderer_kernel
-        COMMAND echo hip_renderer_kernel compiling is skipped
-        COMMENT "hip_renderer_kernel compiling is skipped"
+        COMMAND echo Compiling hip kernels is skipped
+        COMMENT "Compiling hip kernels is skipped"
     )
 else()
     add_custom_target(
         hip_renderer_kernel
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${hip_renderer_hip_bin_dir}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${hip_renderer_hip_bin_dir}
         COMMAND ${HIPCC_EXECUTABLE}  ${hip_renderer_kernel_compile_options}
-        COMMENT "hip_renderer_kernel compiling"
+        COMMENT "Compiling hip kernels"
     )
 endif()
 
@@ -61,6 +61,8 @@ set(SOURCES
 )
 
 add_library(hip_renderer STATIC ${HEADERS} ${SOURCES})
+add_dependencies(hip_renderer hip_renderer_kernel)
+
 target_include_directories(hip_renderer 
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -70,5 +72,3 @@ target_link_libraries(hip_renderer
     renderer
 )
 set_target_properties(hip_renderer PROPERTIES HIP_BIN_DIR "${hip_renderer_hip_bin_dir}")
-
-add_dependencies(hip_renderer hip_renderer_kernel)
