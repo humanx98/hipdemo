@@ -2,18 +2,10 @@
 #include <hiprt/hiprt_device.h>
 #include <hiprt/hiprt_types.h>
 
-HIPRT_DEVICE bool intersectFunc(
-    uint32_t					geomType,
-    uint32_t					rayType,
-    const hiprtFuncTableHeader& tableHeader,
-    const hiprtRay&				ray,
-    void*						payload,
-    hiprtHit&					hit )
-{
+HIPRT_DEVICE bool intersectFunc(uint32_t geomType, uint32_t rayType, const hiprtFuncTableHeader& tableHeader, const hiprtRay& ray, void* payload, hiprtHit& hit) {
     const uint32_t index = tableHeader.numGeomTypes * rayType + geomType;
-    const void*	   data	 = tableHeader.funcDataSets[index].intersectFuncData;
-    switch ( index )
-    {
+    const void* data = tableHeader.funcDataSets[index].intersectFuncData;
+    switch ( index ) {
     default: 
         break;
     }
@@ -21,18 +13,10 @@ HIPRT_DEVICE bool intersectFunc(
     return false;
 }
 
-HIPRT_DEVICE bool filterFunc(
-    uint32_t					geomType,
-    uint32_t					rayType,
-    const hiprtFuncTableHeader& tableHeader,
-    const hiprtRay&				ray,
-    void*						payload,
-    const hiprtHit&				hit )
-{
+HIPRT_DEVICE bool filterFunc(uint32_t geomType, uint32_t rayType, const hiprtFuncTableHeader& tableHeader, const hiprtRay& ray, void* payload, const hiprtHit& hit) {
     const uint32_t index = tableHeader.numGeomTypes * rayType + geomType;
-    const void*	   data	 = tableHeader.funcDataSets[index].filterFuncData;
-    switch ( index )
-    {
+    const void* data = tableHeader.funcDataSets[index].filterFuncData;
+    switch (index) {
 
     default:
         break;
@@ -46,13 +30,13 @@ HIPRT_HOST_DEVICE HIPRT_INLINE float3 normalize(const float3& a) { return a / sq
 
 extern "C" __global__ void SceneIntersectionKernel(hiprtScene scene, float* pixels, int2 res)
 {
-    const uint32_t x = blockIdx.x * blockDim.x + threadIdx.x;
-    const uint32_t y = blockIdx.y * blockDim.y + threadIdx.y;
-    const uint32_t index = x + y * res.x;
-
+    const uint32_t index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index >= res.x * res.y) {
         return;
     }
+
+    const uint32_t y = index / res.x;
+    const uint32_t x = index % res.x;
 
     float3 o = { x / static_cast<float>( res.x ) - 0.5f, y / static_cast<float>( res.y ) - 0.5f, -1.0f };
     float3 d = { 0.0f, 0.0f, 1.0f };

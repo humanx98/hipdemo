@@ -38,9 +38,12 @@ get_target_property(hiprt_renderer_hip_bin_dir hiprt_renderer HIP_BIN_DIR)
 get_target_property(hip_renderer_hip_bin_dir hip_renderer HIP_BIN_DIR)
 get_target_property(vulkan_spv_bin_dir vulkan SPV_BIN_DIR)
 
-add_custom_command(TARGET hipdemo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:hipdemo>/hip_spv_bin
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${hiprt_renderer_hip_bin_dir} $<TARGET_FILE_DIR:hipdemo>/hip_spv_bin
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${hip_renderer_hip_bin_dir} $<TARGET_FILE_DIR:hipdemo>/hip_spv_bin
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${vulkan_spv_bin_dir} $<TARGET_FILE_DIR:hipdemo>/hip_spv_bin
+add_custom_target(
+    hip_spv_bin
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/hip_spv_bin
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${hiprt_renderer_hip_bin_dir} ${CMAKE_CURRENT_BINARY_DIR}/hip_spv_bin
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${hip_renderer_hip_bin_dir} ${CMAKE_CURRENT_BINARY_DIR}/hip_spv_bin
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${vulkan_spv_bin_dir} ${CMAKE_CURRENT_BINARY_DIR}/hip_spv_bin
+    COMMENT "Copying hip spv bin to ${CMAKE_CURRENT_BINARY_DIR}/hip_spv_bin"
 )
+add_dependencies(hipdemo hip_spv_bin)

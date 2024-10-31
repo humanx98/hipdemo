@@ -128,12 +128,21 @@ RendererResult hip_renderer_render(renderer_ptr self) {
 
     ivec2 res = { (i32)self->width, (i32)self->height };
     void* args[] = { &self->pixels, &res };
-    i32 bx = 8;
-    i32 by = 8;
-    ivec3 nb;
-    nb.x = (self->width + bx - 1) / bx;
-    nb.y = (self->height + by - 1) / by;
-    return HIP_CHECK(hipModuleLaunchKernel((hipFunction_t)self->kernel_func, nb.x, nb.y, 1, bx, by, 1, 0, 0, args, 0));
+    int3 block = { 1024, 1, 1 };
+    int3 grid = { ((self->width * self->height) + block.x - 1) / block.x, 1, 1 };
+    return HIP_CHECK(hipModuleLaunchKernel(
+        self->kernel_func,
+        grid.x,
+        grid.y,
+        grid.z,
+        block.x,
+        block.y,
+        block.z,
+        0,
+        0,
+        args,
+        0
+    ));
 }
 
 RendererResult hip_renderer_copy_target_to(renderer_ptr self, void* dst) {

@@ -20,6 +20,10 @@ endif()
 #     gfx900 gfx902 gfx904 gfx906 gfx908 gfx909 gfx90a gfx90c gfx940 gfx941 gfx942
 #     CACHE STRING "AMD HIP architectures to build binaries for")
 set(hip_binaries_arch gfx1030 gfx1031 gfx90c CACHE STRING "AMD HIP architectures to build binaries for")
+set(target_gpus)
+foreach(arch ${hip_binaries_arch})
+    list(APPEND target_gpus "--offload-arch=${arch}")
+endforeach()
 
 set(hip_renderer_hip_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/hip_renderer_hip_bin")
 set(hip_renderer_kernel_compile_options
