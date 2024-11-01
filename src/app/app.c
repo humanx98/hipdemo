@@ -221,7 +221,7 @@ b8 app_init_renderer(App* self, HipCreationProperties creation_properties) {
     const f32 S = 0.5f;
     const f32 T = 0.8f;
     vec3 vertices[] = {
-        {S, S, 0.0f},  {S + T * S, -S * S, 0.0f},  {S - T * S, -S * S, 0.0f},
+        {S, S, 0.0f}, {S + T * S, -S * S, 0.0f}, {S - T * S, -S * S, 0.0f},
         {-S, S, 0.0f}, {-S + T * S, -S * S, 0.0f}, {-S - T * S, -S * S, 0.0f}
     };
     TriangleMeshCreationProperties triangle_mesh_creation_properties = {

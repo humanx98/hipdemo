@@ -5,7 +5,7 @@
 #include <ww/defines.h>
 #include <ww/file.h>
 #include <ww/log.h>
-#include <vma.h>
+#include "vma.h"
 
 static const char* device_extensions[] = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME

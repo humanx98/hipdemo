@@ -1,5 +1,13 @@
 find_package(Vulkan COMPONENTS glslangValidator REQUIRED)
 
+FetchContent_Declare(VulkanMemoryAllocator 
+    GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+    GIT_TAG v3.1.0
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
+)
+FetchContent_MakeAvailable(VulkanMemoryAllocator)
+
 set(spv_bin_dir "${CMAKE_CURRENT_BINARY_DIR}/spv_bin")
 file(MAKE_DIRECTORY ${spv_bin_dir})
 
@@ -8,6 +16,7 @@ set(HEADERS
     include/ww/vulkan/renderer.h
     include/ww/vulkan/viewport_no_gp.h
     include/ww/vulkan/viewport.h
+    vma.h
 )
 
 set(SOURCES
@@ -15,13 +24,15 @@ set(SOURCES
     renderer.c
     viewport_no_gp.c
     viewport.c
+    vma.cpp
 )
 
 add_library(vulkan STATIC ${HEADERS} ${SOURCES})
 target_include_directories(vulkan PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(vulkan
+    Vulkan::Vulkan
+    GPUOpen::VulkanMemoryAllocator
     ww_core
-    vma
     viewport
 )
 set_target_properties(vulkan PROPERTIES SPV_BIN_DIR "${spv_bin_dir}")

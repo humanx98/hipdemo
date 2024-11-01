@@ -31,7 +31,6 @@ add_compile_options(-Wunused-result)
 add_compile_options(-Werror)
 
 add_subdirectory(src/core)
-add_subdirectory(src/vma)
 add_subdirectory(src/viewport)
 add_subdirectory(src/renderer)
 add_subdirectory(src/vulkan)
