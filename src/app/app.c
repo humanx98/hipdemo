@@ -10,6 +10,10 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <ww/hip/common.h>
+#include <assimp/cimport.h>
+#include <assimp/scene.h>
+#include <assimp/mesh.h>
+#include <assimp/postprocess.h>
 
 #define USE_HIPRT_RENDERER 1
 #if USE_HIPRT_RENDERER
@@ -217,77 +221,84 @@ b8 app_init_renderer(App* self, HipCreationProperties creation_properties) {
         return false;
     }
 
-    u32 indices[] = {0, 1, 2, 3, 4, 5};
-    const f32 S = 0.5f;
-    const f32 T = 0.8f;
-    vec3 vertices[] = {
-        {S, S, 0.0f}, {S + T * S, -S * S, 0.0f}, {S - T * S, -S * S, 0.0f},
-        {-S, S, 0.0f}, {-S + T * S, -S * S, 0.0f}, {-S - T * S, -S * S, 0.0f}
-    };
-    TriangleMeshCreationProperties triangle_mesh_creation_properties = {
-        .triangle_count = WW_ARRAY_SIZE(indices) / 3,
-        .triangle_indices = indices,
-        .vertex_count = WW_ARRAY_SIZE(vertices),
-        .vertices = vertices,
-    };
+    const char* file_path = "meshes/cornellpot.obj";
+    const struct aiScene* ai_scene = aiImportFile(file_path, aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType | aiProcess_GenSmoothNormals);
+
+    if (ai_scene == NULL) {
+        WW_LOG_ERROR("Assimp failed to load %s\n", file_path);
+        return false;
+    }
+
+    WwDArray(u32) indices = ww_darray_init(self->allocator, u32);
+    usize max_triangle_count = 0;
+    for (u32 i = 0; i < ai_scene->mNumMeshes; i++) {
+        max_triangle_count = WW_MAX(max_triangle_count, ai_scene->mMeshes[i]->mNumFaces);
+    }
+
+    b8 success = ww_darray_ensure_total_capacity_precise(&indices, max_triangle_count * 3);
+    if (!success) {
+        goto failed_scene_import;
+    }
+
+    success = ww_darray_ensure_total_capacity_precise(&self->triangle_meshes, ai_scene->mNumMeshes);
+    if (!success) {
+        goto failed_scene_import;
+    }
     
-    if (!ww_darray_ensure_total_capacity_precise(&self->triangle_meshes, 1)) {
-        return false;
+    success = ww_darray_ensure_total_capacity_precise(&self->object_instances, ai_scene->mNumMeshes);
+    if (!success) {
+        goto failed_scene_import;
     }
 
-    TriangleMesh triangle_mesh = {};
-    if (renderer_create_triangle_mesh(self->renderer, triangle_mesh_creation_properties, &triangle_mesh).failed) {
-        return false;
-    }
+    for (u32 i = 0; i < ai_scene->mNumMeshes; i++) {
+        const struct aiMesh* mesh = ai_scene->mMeshes[i];
 
-    ww_darray_append_assume_capacity(&self->triangle_meshes, triangle_mesh);
-
-    if (!ww_darray_ensure_total_capacity_precise(&self->object_instances, 2)) {
-        return false;
-    }
-
-    ObjectInstance object_instance = {};
-    if (renderer_create_object_instance(self->renderer, triangle_mesh.ptr, &object_instance).failed) {
-        return false;
-    }
-
-    ww_darray_append_assume_capacity(&self->object_instances, object_instance);
-
-    if (object_instance_set_transform(object_instance, mat4_scale(0.5f, 0.5f, 0.5f)).failed) {
-        return false;
-    }
-
-    if (scene_attach_object_instance(self->scene, object_instance.ptr).failed) {
-        return false;
-    }
-
-    if (renderer_create_object_instance(self->renderer, triangle_mesh.ptr, &object_instance).failed) {
-        return false;
-    }
-
-    ww_darray_append_assume_capacity(&self->object_instances, object_instance);
-
-    mat4 transform = (mat4) {
-        .r = {
-          { 0.25f, 0.0f, 0.0f, 0.0f },  
-          { 0.0f, 0.25f, 0.0f, 0.25f },  
-          { 0.0f, 0.0f, 0.25f, 0.0f },  
-          { 0.0f, 0.0f, 0.0f, 1.0f },  
+        for (u32 j = 0; j < mesh->mNumFaces; j++) {
+            ww_darray_append_assume_capacity(&indices, mesh->mFaces[j].mIndices[0]);
+            ww_darray_append_assume_capacity(&indices, mesh->mFaces[j].mIndices[1]);
+            ww_darray_append_assume_capacity(&indices, mesh->mFaces[j].mIndices[2]);
         }
-    };
-    if (object_instance_set_transform(object_instance, transform).failed) {
-        return false;
+
+        WW_STATIC_ASSERT_EXPR(sizeof(mesh->mVertices[0]) == sizeof(vec3), "Check assimp vertices type");
+        TriangleMeshCreationProperties triangle_mesh_creation_properties = {
+            .triangle_count = mesh->mNumFaces,
+            .triangle_indices = (u32*)ww_darray_ptr(&indices),
+            .vertex_count = mesh->mNumVertices,
+            .vertices = (vec3*)mesh->mVertices,
+        };
+
+        TriangleMesh triangle_mesh = {};
+        success = !renderer_create_triangle_mesh(self->renderer, triangle_mesh_creation_properties, &triangle_mesh).failed;
+        if (!success) {
+            goto failed_scene_import;
+        }
+
+        ww_darray_append_assume_capacity(&self->triangle_meshes, triangle_mesh);
+        ww_darray_resize_assume_capacity(&indices, 0);
+
+        ObjectInstance object_instance = {};
+        success = !renderer_create_object_instance(self->renderer, triangle_mesh.ptr, &object_instance).failed;
+        if (!success) {
+            goto failed_scene_import;
+        }
+
+        ww_darray_append_assume_capacity(&self->object_instances, object_instance);
+
+        success = !scene_attach_object_instance(self->scene, object_instance.ptr).failed;
+        if (!success) {
+            goto failed_scene_import;
+        }
     }
 
-    if (scene_attach_object_instance(self->scene, object_instance.ptr).failed) {
-        return false;
+    success = !renderer_set_scene(self->renderer, self->scene.ptr).failed;
+    if (success) {
+        goto failed_scene_import;
     }
 
-    if (renderer_set_scene(self->renderer, self->scene.ptr).failed) {
-        return false;
-    }
-
-    return true;
+failed_scene_import:
+    ww_darray_deinit(&indices);
+    aiReleaseImport(ai_scene);
+    return success;
 }
 
 static AppResult app_handle_resize(App* self) {
@@ -323,3 +334,4 @@ void framebuffer_resize_callback(GLFWwindow* window, int width, int height) {
 VkResult vulkan_create_surface(VkInstance instance, void* window, VkSurfaceKHR* surface) {
     return glfwCreateWindowSurface(instance, (GLFWwindow*)window, NULL, surface);
 }
+

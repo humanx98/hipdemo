@@ -89,7 +89,6 @@ if(${SKIP_HIPRT_RENDERER_KERNELS_COMPILATION})
 else()
     add_custom_target(
         hiprt_renderer_kernel
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${hiprt_renderer_hip_bin_dir}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${hiprt_renderer_hip_bin_dir}
         COMMAND  ${HIPCC_EXECUTABLE}  ${hiprt_renderer_kernel_compile_options}
         COMMAND ${HIP_LINKER_EXECUTABLE} ${hiprt_renderer_link_options}

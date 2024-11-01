@@ -47,7 +47,6 @@ if(${SKIP_HIP_RENDERER_KERNELS_COMPILATION})
 else()
     add_custom_target(
         hip_renderer_kernel
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${hip_renderer_hip_bin_dir}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${hip_renderer_hip_bin_dir}
         COMMAND ${HIPCC_EXECUTABLE}  ${hip_renderer_kernel_compile_options}
         COMMENT "Compiling hip kernels"
