@@ -1,10 +1,10 @@
 #pragma once
 
 #include "hiprt_common.h"
-#include "hiprt_triangle_mesh.h"
 
 extern "C" {
 #include <ww/renderer/object_instance.h>
+#include <ww/renderer/triangle_mesh.h>
 }
 
 typedef struct object_instance_ptr_impl {

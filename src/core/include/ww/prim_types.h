@@ -21,6 +21,8 @@ typedef _Bool b8;
 #define WW_U32_MAX UINT_MAX
 #define WW_U64_MIN (u32)0
 #define WW_U64_MAX UINT64_MAX
+#define WW_F32_INFINITY INFINITY
+#define WW_F32_PI 3.14159265358979323846f
 
 #define _MIN(a, b) ((a) < b ? (a) : (b))
 #define _MAX(a, b) ((a) > b ? (a) : (b))

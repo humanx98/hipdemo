@@ -39,6 +39,7 @@ typedef struct App {
     GLFWwindow* window;
     Viewport viewport;
     Renderer renderer;
+    Camera camera;
     Scene scene;
     WwDArray(TriangleMesh) triangle_meshes;
     WwDArray(ObjectInstance) object_instances;
@@ -49,6 +50,9 @@ static VkResult __ww_must_check vulkan_create_surface(VkInstance instance, void*
 static void app_init_window(App* self, u32 width, u32 height);
 static b8 __ww_must_check app_init_viewport(App* self, VulkanViewportCreationProperties creation_properties);
 static b8 __ww_must_check app_init_renderer(App* self, HipCreationProperties creation_properties);
+static b8 __ww_must_check app_load_scene(App* self, const char* file);
+static b8 __ww_must_check app_load_cornellplot(App* self);
+static b8 __ww_must_check app_load_lucy(App* self);
 static AppResult __ww_must_check app_handle_resize(App* self);
 
 AppResult app_create(AppCreationProperties creation_properties, App** app) {
@@ -101,6 +105,10 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
         goto failed;
     }
 
+    if (!app_load_lucy(self)) {
+        goto failed;
+    }
+
     *app = self;
     return APP_SUCCESS;
 
@@ -114,6 +122,10 @@ void app_destroy(App* self) {
 
     if (self->scene.ptr) {
         scene_destroy(self->scene);
+    }
+
+    if (self->camera.ptr) {
+        camera_destroy(self->camera);
     }
 
     ww_darray_foreach_by_ref(&self->object_instances, ObjectInstance, oi)
@@ -221,11 +233,27 @@ b8 app_init_renderer(App* self, HipCreationProperties creation_properties) {
         return false;
     }
 
-    const char* file_path = "meshes/cornellpot.obj";
-    const struct aiScene* ai_scene = aiImportFile(file_path, aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType | aiProcess_GenSmoothNormals);
+    if (renderer_set_scene(self->renderer, self->scene.ptr).failed) {
+        return false;
+    }
+
+    if (renderer_create_camera(self->renderer, &self->camera).failed) {
+        return false;
+    }
+
+    if (scene_set_camera(self->scene, self->camera.ptr).failed) {
+        return false;
+    }
+
+    return true;
+}
+
+b8 app_load_scene(App* self, const char* file) {
+    u32 ai_import_flags = aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType | aiProcess_GenSmoothNormals;
+    const struct aiScene* ai_scene = aiImportFile(file, ai_import_flags);
 
     if (ai_scene == NULL) {
-        WW_LOG_ERROR("Assimp failed to load %s\n", file_path);
+        WW_LOG_ERROR("Assimp failed to load %s\n", file);
         return false;
     }
 
@@ -235,18 +263,15 @@ b8 app_init_renderer(App* self, HipCreationProperties creation_properties) {
         max_triangle_count = WW_MAX(max_triangle_count, ai_scene->mMeshes[i]->mNumFaces);
     }
 
-    b8 success = ww_darray_ensure_total_capacity_precise(&indices, max_triangle_count * 3);
-    if (!success) {
+    if (!ww_darray_ensure_total_capacity_precise(&indices, max_triangle_count * 3)) {
         goto failed_scene_import;
     }
 
-    success = ww_darray_ensure_total_capacity_precise(&self->triangle_meshes, ai_scene->mNumMeshes);
-    if (!success) {
+    if (!ww_darray_ensure_total_capacity_precise(&self->triangle_meshes, ai_scene->mNumMeshes)) {
         goto failed_scene_import;
     }
     
-    success = ww_darray_ensure_total_capacity_precise(&self->object_instances, ai_scene->mNumMeshes);
-    if (!success) {
+    if (!ww_darray_ensure_total_capacity_precise(&self->object_instances, ai_scene->mNumMeshes)) {
         goto failed_scene_import;
     }
 
@@ -255,6 +280,7 @@ b8 app_init_renderer(App* self, HipCreationProperties creation_properties) {
 
         for (u32 j = 0; j < mesh->mNumFaces; j++) {
             ww_darray_append_assume_capacity(&indices, mesh->mFaces[j].mIndices[0]);
+            assert(ai_import_flags & aiProcess_Triangulate);
             ww_darray_append_assume_capacity(&indices, mesh->mFaces[j].mIndices[1]);
             ww_darray_append_assume_capacity(&indices, mesh->mFaces[j].mIndices[2]);
         }
@@ -268,8 +294,7 @@ b8 app_init_renderer(App* self, HipCreationProperties creation_properties) {
         };
 
         TriangleMesh triangle_mesh = {};
-        success = !renderer_create_triangle_mesh(self->renderer, triangle_mesh_creation_properties, &triangle_mesh).failed;
-        if (!success) {
+        if (renderer_create_triangle_mesh(self->renderer, triangle_mesh_creation_properties, &triangle_mesh).failed) {
             goto failed_scene_import;
         }
 
@@ -277,28 +302,57 @@ b8 app_init_renderer(App* self, HipCreationProperties creation_properties) {
         ww_darray_resize_assume_capacity(&indices, 0);
 
         ObjectInstance object_instance = {};
-        success = !renderer_create_object_instance(self->renderer, triangle_mesh.ptr, &object_instance).failed;
-        if (!success) {
+        if (renderer_create_object_instance(self->renderer, triangle_mesh.ptr, &object_instance).failed) {
             goto failed_scene_import;
         }
 
         ww_darray_append_assume_capacity(&self->object_instances, object_instance);
 
-        success = !scene_attach_object_instance(self->scene, object_instance.ptr).failed;
-        if (!success) {
+        if (scene_attach_object_instance(self->scene, object_instance.ptr).failed) {
             goto failed_scene_import;
         }
+
+        // if (object_instance_set_transform(object_instance, mat4_translate(0.0f, 3.0f, 0.0f)).failed) {
+        //     goto failed_scene_import;
+        // }
     }
 
-    success = !renderer_set_scene(self->renderer, self->scene.ptr).failed;
-    if (success) {
-        goto failed_scene_import;
-    }
+    ww_darray_deinit(&indices);
+    aiReleaseImport(ai_scene);
+    return true;
 
 failed_scene_import:
     ww_darray_deinit(&indices);
     aiReleaseImport(ai_scene);
-    return success;
+    return false;
+}
+
+b8 app_load_cornellplot(App* self) {
+    vec3 look_from = make_vec3(0.0f, 2.5f, 20.0f);
+    vec3 look_at = make_vec3(0.0f, 2.5f, 0.0);
+    vec3 up = make_vec3(0.0f, 1.0f, 0.0f);
+    if (camera_set_look_at(self->camera, look_from, look_at, up).failed) {
+        return false;
+    }
+
+    if (camera_set_focus_dist(self->camera, 10.0f).failed) {
+        return false;
+    }
+    return app_load_scene(self, "meshes/cornellpot.obj");
+}
+
+b8 app_load_lucy(App* self) {
+    vec3 look_from = make_vec3(0.0f, 1600.0f, 1500.0f);
+    vec3 look_at = make_vec3(0.0f, 450.0f, -300.0);
+    vec3 up = make_vec3(0.0f, 1.0f, 0.0f);
+    if (camera_set_look_at(self->camera, look_from, look_at, up).failed) {
+        return false;
+    }
+
+    if (camera_set_focus_dist(self->camera, 10.0f).failed) {
+        return false;
+    }
+    return app_load_scene(self, "meshes/lucy.obj");
 }
 
 static AppResult app_handle_resize(App* self) {
@@ -320,6 +374,10 @@ static AppResult app_handle_resize(App* self) {
     viewport_get_resolution(self->viewport, &width, &height);
     WW_LOG_DEBUG("[App] renderer resize (%d, %d)\n", width, height);
     if (renderer_set_target_resolution(self->renderer, width, height).failed) {
+        return APP_FAILED;
+    }
+
+    if (camera_set_aspect_ratio(self->camera, (f32)width / height).failed) {
         return APP_FAILED;
     }
 

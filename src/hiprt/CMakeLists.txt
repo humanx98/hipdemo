@@ -99,6 +99,7 @@ endif()
 
 set(HEADERS
     include/ww/hiprt/renderer.h
+    kernels/types/camera.h
     hiprt_common.h
     hiprt_object_instance.h
     hiprt_scene.h

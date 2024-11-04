@@ -13,6 +13,7 @@ typedef struct scene_ptr_impl {
     hiprtSceneBuildInput scene_input;
     hiprtDevicePtr scene_temp;
     hiprtScene scene;
+    camera_ptr camera;
     std::vector<object_instance_ptr> attached_object_instances;
 } scene_ptr_impl;
 

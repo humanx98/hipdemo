@@ -78,7 +78,8 @@ void hiprt_scene_destroy(scene_ptr self) {
 
 RendererResult hiprt_scene_set_camera(scene_ptr self, camera_ptr camera) {
     assert(self);
-    WW_EXIT_WITH_MSG("hiprt_scene_set_camera is not implemented\n");
+    self->camera = camera;
+    return renderer_result(RENDERER_SUCCESS);
 }
 
 RendererResult hiprt_scene_attach_object_instance(scene_ptr self, object_instance_ptr object_instance) {

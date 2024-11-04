@@ -24,6 +24,7 @@
         vulkan-validation-layers
         glslang
         valgrind
+        blender-hip
       ];
       
       shellHook = ''

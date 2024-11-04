@@ -1,4 +1,5 @@
 #include "hiprt_object_instance.h"
+#include "hiprt_triangle_mesh.h"
 #include <cassert>
 
 extern "C" {

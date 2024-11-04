@@ -6,11 +6,14 @@
 #include <vector>
 #include "hiprt_common.h"
 #include "hiprt_object_instance.h"
+#include "hiprt_triangle_mesh.h"
 #include "hiprt_scene.h"
+#include "kernels/types/camera.h"
 
 extern "C" {
 #include <ww/hip/common.h>
 #include <ww/renderer.h>
+#include <ww/renderer/camera_def_impl.h>
 #include <ww/collections/darray.h>
 #include <ww/file.h>
 #include <ww/log.h>
@@ -253,8 +256,26 @@ RendererResult hiprt_renderer_render(renderer_ptr self) {
         }
     }
 
+    device::Camera camera = {
+        .origin = self->scene->camera->origin,
+        .lower_left_corner = self->scene->camera->lower_left_corner,
+        .horizontal = self->scene->camera->horizontal,
+        .vertical = self->scene->camera->vertical,
+        .u = self->scene->camera->u,
+        .v = self->scene->camera->v,
+        .w = self->scene->camera->w,
+        .lens_radius = self->scene->camera->lens_radius,
+        .vfov = self->scene->camera->vfov,
+        .focus_dist = self->scene->camera->focus_dist,
+        .aspect_ratio = self->scene->camera->aspect_ratio,
+        .look_from = self->scene->camera->look_from,
+        .look_at = self->scene->camera->look_at,
+        .vup = self->scene->camera->vup,
+    };
+
     hiprtInt2 res = {(i32)self->width, (i32)self->height};
-    void *args[] = {&self->scene->scene, &self->pixels, &res};
+    b8 flip_y = true;
+    void *args[] = {&self->scene->scene, &camera, &self->pixels, &res, &flip_y};
     int3 block = { 1024, 1, 1 };
     int3 grid = { ((self->width * self->height) + block.x - 1) / block.x, 1, 1 };
     return HIP_CHECK(hipModuleLaunchKernel(
@@ -291,7 +312,7 @@ RendererResult hiprt_renderer_create_scene(renderer_ptr self, Scene* scene) {
 
 RendererResult hiprt_renderer_create_camera(renderer_ptr self, Camera* camera) {
     assert(self);
-    WW_EXIT_WITH_MSG("create camera is not implemented\n");
+    return camera_def_impl_create(self->context.allocator, camera);
 }
 
 RendererResult hiprt_renderer_create_object_instance(renderer_ptr self, const triangle_mesh_ptr triangle_mesh, ObjectInstance* object_instance) {

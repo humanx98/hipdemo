@@ -142,6 +142,8 @@ HOST_DEVICE INLINE vec3 vec3_sub(vec3 a, vec3 b) { return make_vec3(a.x - b.x, a
 HOST_DEVICE INLINE vec3 vec3_mul(vec3 a, f32 b) { return make_vec3(a.x * b, a.y * b, a.z * b); }
 HOST_DEVICE INLINE vec3 vec3_div(vec3 a, f32 b) { return make_vec3(a.x / b, a.y / b, a.z / b); }
 HOST_DEVICE INLINE vec3 vec3_neg(vec3 a) { return make_vec3(-a.x, -a.y, -a.z); }
+HOST_DEVICE INLINE vec3 vec3_min(vec3 a, vec3 b) { return make_vec3(WW_MIN(a.x, b.x), WW_MIN(a.y, b.y), WW_MIN(a.z, b.z)); }
+HOST_DEVICE INLINE vec3 vec3_max(vec3 a, vec3 b) { return make_vec3(WW_MAX(a.x, b.x), WW_MAX(a.y, b.y), WW_MAX(a.z, b.z)); }
 
 HOST_DEVICE INLINE vec4 vec4_add(vec4 a, vec4 b) { return make_vec4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); }
 HOST_DEVICE INLINE vec4 vec4_sub(vec4 a, vec4 b) { return make_vec4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); }

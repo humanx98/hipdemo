@@ -1,6 +1,7 @@
 #include <hip/hip_runtime.h>
 #include <hiprt/hiprt_device.h>
 #include <hiprt/hiprt_types.h>
+#include "types/camera.h"
 
 HIPRT_DEVICE bool intersectFunc(uint32_t geomType, uint32_t rayType, const hiprtFuncTableHeader& tableHeader, const hiprtRay& ray, void* payload, hiprtHit& hit) {
     const uint32_t index = tableHeader.numGeomTypes * rayType + geomType;
@@ -38,7 +39,7 @@ HIPRT_HOST_DEVICE HIPRT_INLINE float3 rotate(const float4& rotation, const float
 
 
 HIPRT_HOST_DEVICE HIPRT_INLINE hiprtRay generateRay(float x, float y, int2 res) {
-    float fov = 45.0f * hiprt::Pi / 180.f;;
+    float fov = 45.0f * hiprt::Pi / 180.f;
     float4 rotation = make_float4(0.0f, 0.0f, 1.0f, 0.0f);
     float3 translation = make_float3(0.0f, 2.5f, 5.8f);
 
@@ -52,13 +53,20 @@ HIPRT_HOST_DEVICE HIPRT_INLINE hiprtRay generateRay(float x, float y, int2 res) 
     const float3 viewDir = rotate(rotation, make_float3(0.0f, 0.0f, -1.0f));
 
     hiprtRay ray;
-    ray.origin  = translation;
+    ray.origin = translation;
     ray.direction = normalize(dir.x * holDir + dir.y * upDir + dir.z * viewDir);
     return ray;
 }
 
-extern "C" __global__ void SceneIntersectionKernel(hiprtScene scene, float* pixels, int2 res) {
-    const uint32_t index = blockIdx.x * blockDim.x + threadIdx.x;
+HIPRT_HOST_DEVICE HIPRT_INLINE hiprtRay generateRay(const device::Camera& camera, float s, float t) {
+    hiprtRay ray;
+    ray.origin = camera.origin;
+    ray.direction = camera.lower_left_corner+ s * camera.horizontal + t * camera.vertical - camera.origin;
+    return ray;
+}
+
+extern "C" __global__ void SceneIntersectionKernel(hiprtScene scene, device::Camera camera, float* pixels, int2 res, bool flip_y) {
+    uint32_t index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index >= res.x * res.y) {
         return;
     }
@@ -66,7 +74,7 @@ extern "C" __global__ void SceneIntersectionKernel(hiprtScene scene, float* pixe
     const uint32_t y = index / res.x;
     const uint32_t x = index % res.x;
 
-    hiprtRay ray = generateRay(x, y, res);
+    hiprtRay ray = generateRay(camera, (float)x / (res.x - 1), (float)y / (res.y - 1));
     hiprtSceneTraversalClosest tr(scene, ray);
     hiprtHit hit = tr.getNextHit();
 
@@ -78,6 +86,10 @@ extern "C" __global__ void SceneIntersectionKernel(hiprtScene scene, float* pixe
         color.z	 = ((n.z + 1.0f) * 0.5f);
     }
 
+    if (flip_y) {
+        uint32_t flipped_y = res.y - y - 1;
+        index = res.x * flipped_y + x; 
+    }
     pixels[index * 4 + 0] = color.x;
     pixels[index * 4 + 1] = color.y;
     pixels[index * 4 + 2] = color.z;

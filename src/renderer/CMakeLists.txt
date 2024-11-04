@@ -1,5 +1,6 @@
 
 set(HEADERS
+    include/ww/renderer/camera_def_impl.h
     include/ww/renderer/camera.h
     include/ww/renderer/object_instance.h
     include/ww/renderer/result.h
@@ -9,6 +10,7 @@ set(HEADERS
 )
 
 set(SOURCES
+    camera_def_impl.c
     camera.c
     object_instance.c
     renderer.c
