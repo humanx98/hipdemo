@@ -26,37 +26,8 @@ HIPRT_DEVICE bool filterFunc(uint32_t geomType, uint32_t rayType, const hiprtFun
     return false;
 }
 
-HIPRT_HOST_DEVICE HIPRT_INLINE float3 make_float3(const float4& a) { return make_float3(a.x, a.y, a.z); }
 HIPRT_HOST_DEVICE HIPRT_INLINE float dot(const float3& a, const float3& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
-HIPRT_HOST_DEVICE HIPRT_INLINE float3 cross(const float3& a, const float3& b) { return make_float3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x); }
 HIPRT_HOST_DEVICE HIPRT_INLINE float3 normalize(const float3& a) { return a / sqrtf(dot(a, a)); }
-
-HIPRT_HOST_DEVICE HIPRT_INLINE float3 rotate(const float4& rotation, const float3& p) {
-    float3 a = sinf(rotation.w / 2.0f) * normalize(make_float3(rotation));
-    float  c = cosf(rotation.w / 2.0f);
-    return 2.0f * dot(a, p) * a + (c * c - dot(a, a)) * p + 2.0f * c * cross(a, p);
-}
-
-
-HIPRT_HOST_DEVICE HIPRT_INLINE hiprtRay generateRay(float x, float y, int2 res) {
-    float fov = 45.0f * hiprt::Pi / 180.f;
-    float4 rotation = make_float4(0.0f, 0.0f, 1.0f, 0.0f);
-    float3 translation = make_float3(0.0f, 2.5f, 5.8f);
-
-    const float offset = 0.5f;
-    const float2 sensorSize = make_float2(0.024f * (res.x / static_cast<float>(res.y)), 0.024f);
-    const float2 xy = make_float2((x + offset) / res.x, (y + offset) / res.y) - make_float2(0.5f, 0.5f);
-    const float3 dir = make_float3(xy.x * sensorSize.x, xy.y * sensorSize.y, sensorSize.y / (2.0f * tan(fov / 2.0f)));
-
-    const float3 holDir = rotate(rotation, make_float3(1.0f, 0.0f, 0.0f));
-    const float3 upDir = rotate(rotation, make_float3(0.0f, -1.0f, 0.0f));
-    const float3 viewDir = rotate(rotation, make_float3(0.0f, 0.0f, -1.0f));
-
-    hiprtRay ray;
-    ray.origin = translation;
-    ray.direction = normalize(dir.x * holDir + dir.y * upDir + dir.z * viewDir);
-    return ray;
-}
 
 HIPRT_HOST_DEVICE HIPRT_INLINE hiprtRay generateRay(const device::Camera& camera, float s, float t) {
     hiprtRay ray;
