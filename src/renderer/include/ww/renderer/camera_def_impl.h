@@ -5,6 +5,7 @@
 
 typedef struct camera_ptr_impl {
     WwAllocator allocator;
+    b8 dirty;
     vec3 origin;
     vec3 lower_left_corner;
     vec3 horizontal;
@@ -19,7 +20,6 @@ typedef struct camera_ptr_impl {
     vec3 look_from;
     vec3 look_at;
     vec3 vup;
-    b8 dirty;
 } camera_ptr_impl;
 
 RendererResult __ww_must_check camera_def_impl_create(WwAllocator allocator, Camera* camera);

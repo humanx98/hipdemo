@@ -6,30 +6,30 @@
 
 #ifdef __KERNELCC__
 #include <hiprt/hiprt_types.h>
-#define vec3 hiprtFloat3
 #else
 extern "C" {
 #include <ww/math.h>
 }
+#define hiprtFloat3 vec3
 #endif
 
 namespace device {
 
 typedef struct Camera {
-    vec3 origin;
-    vec3 lower_left_corner;
-    vec3 horizontal;
-    vec3 vertical;
-    vec3 u;
-    vec3 v;
-    vec3 w;
+    hiprtFloat3 origin;
+    hiprtFloat3 lower_left_corner;
+    hiprtFloat3 horizontal;
+    hiprtFloat3 vertical;
+    hiprtFloat3 u;
+    hiprtFloat3 v;
+    hiprtFloat3 w;
     float lens_radius;
     float vfov;
     float focus_dist;
     float aspect_ratio;
-    vec3 look_from;
-    vec3 look_at;
-    vec3 vup;
+    hiprtFloat3 look_from;
+    hiprtFloat3 look_at;
+    hiprtFloat3 vup;
 } Camera;
 
 }

@@ -41,6 +41,18 @@ typedef struct App {
     Renderer renderer;
     Camera camera;
     Scene scene;
+    struct {
+        b8 w_pressed;
+        b8 s_pressed;
+        b8 a_pressed;
+        b8 d_pressed;
+    } keys;
+    struct {
+        vec3 look_from;
+        vec3 look_at;
+        vec3 up;
+        f32 speed;
+    } camera_params;
     WwDArray(TriangleMesh) triangle_meshes;
     WwDArray(ObjectInstance) object_instances;
 } App;
@@ -53,7 +65,9 @@ static b8 __ww_must_check app_init_renderer(App* self, HipCreationProperties cre
 static b8 __ww_must_check app_load_scene(App* self, const char* file);
 static b8 __ww_must_check app_load_cornellplot(App* self);
 static b8 __ww_must_check app_load_lucy(App* self);
-static AppResult __ww_must_check app_handle_resize(App* self);
+static b8 __ww_must_check app_update(App* self);
+static b8 __ww_must_check app_handle_resize(App* self);
+static b8 __ww_must_check app_handle_keys(App* self);
 
 AppResult app_create(AppCreationProperties creation_properties, App** app) {
     assert(app);
@@ -162,10 +176,14 @@ AppResult app_run(App* self) {
             glfwPollEvents();
             if (viewport_result.code == VIEWPORT_ERROR_OUT_OF_DATE || viewport_result.code == VIEWPORT_SUBOPTIMAL || self->window_resized) {
                 self->window_resized = false;
-                if (app_handle_resize(self).failed) {
+                if (!app_handle_resize(self)) {
                     goto failed;
                 }
             } else if (viewport_result.failed) {
+                goto failed;
+            }
+
+            if (!app_handle_keys(self)) {
                 goto failed;
             }
 
@@ -328,10 +346,11 @@ failed_scene_import:
 }
 
 b8 app_load_cornellplot(App* self) {
-    vec3 look_from = make_vec3(0.0f, 2.5f, 20.0f);
-    vec3 look_at = make_vec3(0.0f, 2.5f, 0.0);
-    vec3 up = make_vec3(0.0f, 1.0f, 0.0f);
-    if (camera_set_look_at(self->camera, look_from, look_at, up).failed) {
+    self->camera_params.speed = 0.2f;
+    self->camera_params.look_from = make_vec3(0.0f, 2.5f, 20.0f);
+    self->camera_params.look_at = make_vec3(0.0f, 2.5f, 0.0);
+    self->camera_params.up = make_vec3(0.0f, 1.0f, 0.0f);
+    if (camera_set_look_at(self->camera, self->camera_params.look_from, self->camera_params.look_at, self->camera_params.up).failed) {
         return false;
     }
 
@@ -342,10 +361,11 @@ b8 app_load_cornellplot(App* self) {
 }
 
 b8 app_load_lucy(App* self) {
-    vec3 look_from = make_vec3(0.0f, 1600.0f, 1500.0f);
-    vec3 look_at = make_vec3(0.0f, 450.0f, -300.0);
-    vec3 up = make_vec3(0.0f, 1.0f, 0.0f);
-    if (camera_set_look_at(self->camera, look_from, look_at, up).failed) {
+    self->camera_params.speed = 5.0f;
+    self->camera_params.look_from = make_vec3(0.0f, 1600.0f, 1500.0f);
+    self->camera_params.look_at = make_vec3(0.0f, 450.0f, -300.0);
+    self->camera_params.up = make_vec3(0.0f, 1.0f, 0.0f);
+    if (camera_set_look_at(self->camera, self->camera_params.look_from, self->camera_params.look_at, self->camera_params.up).failed) {
         return false;
     }
 
@@ -355,7 +375,7 @@ b8 app_load_lucy(App* self) {
     return app_load_scene(self, "meshes/lucy.obj");
 }
 
-static AppResult app_handle_resize(App* self) {
+b8 app_handle_resize(App* self) {
     i32 i32_width = 0;
     i32 i32_height = 0;
     glfwGetFramebufferSize(self->window, &i32_width, &i32_height);
@@ -368,20 +388,69 @@ static AppResult app_handle_resize(App* self) {
     u32 height = (u32)i32_height;
     WW_LOG_DEBUG("[App] viewport resize (%d, %d)\n", width, height);
     if (viewport_set_resolution(self->viewport, width, height).failed) {
-        return APP_FAILED;
+        return false;
     }
 
     viewport_get_resolution(self->viewport, &width, &height);
     WW_LOG_DEBUG("[App] renderer resize (%d, %d)\n", width, height);
     if (renderer_set_target_resolution(self->renderer, width, height).failed) {
-        return APP_FAILED;
+        return false;
     }
 
     if (camera_set_aspect_ratio(self->camera, (f32)width / height).failed) {
-        return APP_FAILED;
+        return false;
     }
 
-    return APP_SUCCESS;
+    return true;
+}
+
+b8 app_handle_keys(App* self) {
+    b8 w_pressed = glfwGetKey(self->window, GLFW_KEY_W) == GLFW_PRESS;
+    b8 s_pressed = glfwGetKey(self->window, GLFW_KEY_S) == GLFW_PRESS;
+    b8 a_pressed = glfwGetKey(self->window, GLFW_KEY_A) == GLFW_PRESS;
+    b8 d_pressed = glfwGetKey(self->window, GLFW_KEY_D) == GLFW_PRESS;
+
+    if (w_pressed || s_pressed || d_pressed || a_pressed) {
+        vec3 target = self->camera_params.look_at;
+        vec3 eye = self->camera_params.look_from;
+        vec3 up = self->camera_params.up;
+        vec3 forward = vec3_sub(target, eye);
+        vec3 forward_norm = vec3_normalize(forward);
+        f32 forward_mag = vec3_length(forward);
+
+        if (w_pressed && forward_mag > self->camera_params.speed) {
+            eye = vec3_add(eye, vec3_mul(forward_norm, self->camera_params.speed));
+        }
+
+        if (s_pressed) {
+            eye = vec3_sub(eye, vec3_mul(forward_norm, self->camera_params.speed));
+        }
+
+        vec3 right = vec3_cross(forward_norm, up);
+        // Redo radius calc in case the fowrard/backward is pressed.
+        forward = vec3_sub(target, eye);
+        forward_mag = vec3_length(forward);
+
+        if (d_pressed) {
+            // Rescale the distance between the target and eye so
+            // that it doesn't change. The eye therefore still
+            // lies on the circle made by the target and eye.
+            eye = vec3_sub(target, vec3_mul(vec3_normalize(vec3_sub(forward, vec3_mul(right, self->camera_params.speed))), forward_mag));
+        }
+
+        if (a_pressed) {
+            eye = vec3_sub(target, vec3_mul(vec3_normalize(vec3_add(forward, vec3_mul(right, self->camera_params.speed))), forward_mag));
+        }
+
+        self->camera_params.look_from = eye;
+        self->camera_params.look_at = target;
+        self->camera_params.up = up;
+        if (camera_set_look_at(self->camera, eye, target, up).failed) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void framebuffer_resize_callback(GLFWwindow* window, int width, int height) {
