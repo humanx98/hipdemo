@@ -3,9 +3,9 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Path $MyInvocation.MyCommand.Definition -Parent
 $rootDir = Resolve-Path -Path "$scriptDir\..\.."
 
-try {
-    cmake --build "$rootDir\build\debug" 
-} catch {
+cmake --build "$rootDir\build\debug" 
+if( -not $? )
+{
     exit 1
 }
 
