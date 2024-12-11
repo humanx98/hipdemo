@@ -552,18 +552,24 @@ VulkanResult vulkan_viewport_get_swap_chain_details(viewport_ptr self) {
         self->swapchain.details.format = ww_darray_get(&formats, VkSurfaceFormatKHR, 0);
     }
 
-    b8 found_present_mode = false;
-    VkPresentModeKHR wanted_present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+    b8 found_mailbox_mode = false;
+    b8 found_immediate_mode = false;
     ww_darray_foreach_by_ref(&present_modes, VkPresentModeKHR, pm) {
-        if (*pm == wanted_present_mode) {
-            found_present_mode = true;
-            self->swapchain.details.present_mode = wanted_present_mode;
-            break;
+        if (*pm == VK_PRESENT_MODE_MAILBOX_KHR) {
+            found_mailbox_mode = true;
+        }
+
+        if (*pm == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+            found_immediate_mode = true;
         }
     }
 
-    if (!found_present_mode) {
-        WW_LOG_WARN("[VulkanViewport] Couldn't find wanted surface present mode");
+    if (found_mailbox_mode) {
+        self->swapchain.details.present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+    } else if (found_immediate_mode) {
+        self->swapchain.details.present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+    } else {
+        WW_LOG_WARN("[viewport_ptr] Couldn't find wanted surface present mode\n");
         self->swapchain.details.present_mode = VK_PRESENT_MODE_FIFO_KHR;
     }
 
