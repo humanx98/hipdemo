@@ -26,7 +26,7 @@ set(ASSIMP_BUILD_ZLIB ON CACHE INTERNAL "Assimp build zlib")
 set(ASSIMP_NO_EXPORT ON CACHE INTERNAL "Assimp no export")
 set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE INTERNAL "Assimp build all importers by default")
 set(ASSIMP_BUILD_OBJ_IMPORTER TRUE CACHE INTERNAL "Assimp build obj importer")
-set(ASSIMP_BUILD_FBX_IMPORTER TRUE CACHE INTERNAL "Assimp build fbx importer")
+# set(ASSIMP_BUILD_FBX_IMPORTER TRUE CACHE INTERNAL "Assimp build fbx importer")
 set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Assimp build shared libs")
 FetchContent_MakeAvailable(assimp)
 
