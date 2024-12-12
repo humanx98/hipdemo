@@ -115,7 +115,7 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
     }
 
     if (vulkan_device_found) {
-        WW_LOG_INFO("Selected vk device: %d\n", creation_properties.device_index);
+        WW_LOG_INFO("Selected vk device: %d\n", vulkan_device_id);
     } else {
         WW_LOG_ERROR("[App] Couldn't find vk device by hip uuid.\n");
         return APP_FAILED;
