@@ -27,7 +27,9 @@ RendererResult hip_check(const char * file, const i32 line, hipError_t err, cons
     return res;
 }
 
-b8 print_hip_devices() {
+b8 hip_print_devices_and_get_count(u32* result_device_count) {
+    assert(result_device_count);
+
     i32 device_count = -1;
     if (HIP_FAILED(hipGetDeviceCount(&device_count))) {
         return false;
@@ -41,10 +43,21 @@ b8 print_hip_devices() {
 
         WW_LOG_INFO("(HIP) %d. %s\n", i, properties.name);
         WW_LOG_INFO("    arch_name: %s\n", properties.gcnArchName);
-        // fix prining luid and uuid
-        // WW_LOG_INFO("    luid: %s\n", properties.luid);
-        // WW_LOG_INFO("    uuid: %s\n", properties.uuid.bytes);
     }
 
+    *result_device_count = (u32)device_count;
+    return true;
+}
+
+b8 hip_get_device_uuid(u32 device_id, HipUUID* result) {
+    assert(result);
+
+    hipUUID uuid;
+    if(HIP_FAILED(hipDeviceGetUuid(&uuid, device_id))) {
+        return false;
+    }
+
+    WW_STATIC_ASSERT_EXPR(sizeof(result->bytes) == sizeof(uuid.bytes), "");
+    memcpy(result->bytes, uuid.bytes, sizeof(result->bytes));
     return true;
 }

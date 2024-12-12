@@ -345,7 +345,7 @@ VulkanResult vulkan_create_device(VkPhysicalDevice physical_device, const Vulkan
     return VULKAN_CHECK(vkCreateDevice(physical_device, &device_create_info, NULL, device));
 }
 
-VulkanResult print_vulkan_devices(WwAllocator allocator) {
+static VulkanResult vulkan_create_info_instance(VkInstance* instance) {
     VkApplicationInfo app_info = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pApplicationName = "print device app name",
@@ -365,13 +365,19 @@ VulkanResult print_vulkan_devices(WwAllocator allocator) {
         .ppEnabledExtensionNames = extensions, 
     };
 
-    VkInstance instance;
-    VulkanResult res = VULKAN_CHECK(vkCreateInstance(&create_info, NULL, &instance));
-    if (res.failed) {
-        return res;
-    }
-   
+    return VULKAN_CHECK(vkCreateInstance(&create_info, NULL, instance));
+}
+
+VulkanResult vulkan_print_devices_and_get_count(WwAllocator allocator, u32* device_count) {
+    assert(device_count);
+    VkInstance instance = NULL;
     WwDArray(VkPhysicalDevice) physical_devices = ww_darray_init(allocator, VkPhysicalDevice);
+
+    VulkanResult res = vulkan_create_info_instance(&instance);
+    if (res.failed) {
+        goto failed;
+    }
+
     res = vulkan_enumerate_physical_devices(instance, &physical_devices);
     if (res.failed) {
         goto failed; 
@@ -415,6 +421,40 @@ VulkanResult print_vulkan_devices(WwAllocator allocator) {
         WW_LOG_INFO("\n");
         i++;
     }
+
+    *device_count = ww_darray_len(&physical_devices);
+failed:
+    ww_darray_deinit(&physical_devices);
+    vkDestroyInstance(instance, NULL);
+    return res; 
+}
+
+VulkanResult __ww_must_check vulkan_get_device_uuid(WwAllocator allocator, u32 device_id, VulkanUUID* result) {
+    assert(result);
+    VkInstance instance = NULL;
+    WwDArray(VkPhysicalDevice) physical_devices = ww_darray_init(allocator, VkPhysicalDevice);
+
+    VulkanResult res = vulkan_create_info_instance(&instance);
+    if (res.failed) {
+        goto failed;
+    }
+
+    res = vulkan_enumerate_physical_devices(instance, &physical_devices);
+    if (res.failed) {
+        goto failed; 
+    }
+
+    usize i = 0;
+    VkPhysicalDevice d = ww_darray_get(&physical_devices, VkPhysicalDevice, device_id);
+    VkPhysicalDeviceIDProperties id_properties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
+    VkPhysicalDeviceProperties2 properties = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+        .pNext = &id_properties,
+    };
+
+    vkGetPhysicalDeviceProperties2(d, &properties);
+    WW_STATIC_ASSERT_EXPR(sizeof(result->bytes) == VK_UUID_SIZE, "");
+    memcpy(result->bytes, id_properties.deviceUUID, VK_UUID_SIZE);
 
 failed:
     ww_darray_deinit(&physical_devices);

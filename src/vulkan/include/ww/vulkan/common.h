@@ -44,6 +44,10 @@ typedef struct VulkanDeviceCreateInfo {
     usize enabled_layer_count;
 } VulkanDeviceCreateInfo;
 
+typedef struct VulkanUUID {
+    u8 bytes[VK_UUID_SIZE];
+} VulkanUUID;
+
 VulkanResult __ww_must_check vulkan_check(const char * file, const i32 line, VkResult err, const char* expression);
 #define VULKAN_CHECK(err) vulkan_check(__FILE__, __LINE__, err, #err)
 
@@ -61,4 +65,5 @@ VulkanResult __ww_must_check vulkan_get_physical_device_surface_present_modes(Vk
 VulkanResult __ww_must_check vulkan_get_swapchain_images(VkDevice device, VkSwapchainKHR swapchain, WwDArray(VkImage)* images);
 usize __ww_must_check vulkan_get_pixel_size(VkFormat format);
 
-VulkanResult __ww_must_check print_vulkan_devices(WwAllocator allocator);
+VulkanResult __ww_must_check vulkan_print_devices_and_get_count(WwAllocator allocator, u32* device_count);
+VulkanResult __ww_must_check vulkan_get_device_uuid(WwAllocator allocator, u32 device_id, VulkanUUID* result);

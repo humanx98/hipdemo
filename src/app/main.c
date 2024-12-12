@@ -53,6 +53,7 @@ i32 main() {
         .allocator = allocator,
         .width = 1000,
         .height = 600,
+        .device_index = 0,
     };
     if (app_create(creation_properties, &app).failed) {
         retvalue = -1;

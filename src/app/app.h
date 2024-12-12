@@ -14,6 +14,7 @@ typedef struct AppCreationProperties {
     WwAllocator allocator;
     u32 width;
     u32 height;
+    u32 device_index;
 } AppCreationProperties;
 
 AppResult __ww_must_check app_create(AppCreationProperties creation_properties, App** app);

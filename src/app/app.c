@@ -72,14 +72,54 @@ static b8 __ww_must_check app_handle_keys(App* self, f32 delta_time_in_seconds);
 AppResult app_create(AppCreationProperties creation_properties, App** app) {
     assert(app);
 
-    if (!print_hip_devices()) {
+    u32 hip_device_count = 0;
+    if (!hip_print_devices_and_get_count(&hip_device_count)) {
         return APP_FAILED;
+    } else if (hip_device_count == 0) {
+        WW_LOG_ERROR("[App] Hip has 0 available devices.\n");
+        return APP_FAILED;
+    } else if (creation_properties.device_index >= hip_device_count) {
+        WW_LOG_ERROR("[App] Hip doesn't have device with id = %d. It has only %d devices.\n", creation_properties.device_index, hip_device_count);
+        return APP_FAILED;
+    } else {
+        WW_LOG_INFO("Selected hip device: %d\n", creation_properties.device_index);
     }
     
-    if (print_vulkan_devices(creation_properties.allocator).failed) {
+    u32 vulkan_device_count = 0;
+    if (vulkan_print_devices_and_get_count(creation_properties.allocator, &vulkan_device_count).failed) {
+        return APP_FAILED;
+    } else if (vulkan_device_count == 0) {
+        WW_LOG_ERROR("[App] Vulkan has 0 available devices.\n");
         return APP_FAILED;
     }
 
+    HipUUID hip_uuid;
+    if (!hip_get_device_uuid(creation_properties.device_index, &hip_uuid)) {
+        return APP_FAILED;
+    }
+
+    u32 vulkan_device_id = 0;
+    b8 vulkan_device_found = false;
+    for (u32 i = 0; i < vulkan_device_count; i++) {
+        VulkanUUID vulkan_uuid;
+        if (vulkan_get_device_uuid(creation_properties.allocator, i, &vulkan_uuid).failed) {
+            return APP_FAILED;
+        }
+
+        WW_STATIC_ASSERT_EXPR(sizeof(hip_uuid.bytes) == sizeof(vulkan_uuid.bytes), "");
+        if (memcmp(hip_uuid.bytes, vulkan_uuid.bytes, sizeof(hip_uuid.bytes)) == 0) {
+            vulkan_device_found = true;
+            vulkan_device_id = i;
+            break;
+        }
+    }
+
+    if (vulkan_device_found) {
+        WW_LOG_INFO("Selected vk device: %d\n", creation_properties.device_index);
+    } else {
+        WW_LOG_ERROR("[App] Couldn't find vk device by hip uuid.\n");
+        return APP_FAILED;
+    }
 
     ww_auto_type alloc_result = ww_allocator_alloc_type(creation_properties.allocator, App);
     if (alloc_result.failed) {
@@ -100,7 +140,7 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
     const char** glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
     VulkanViewportCreationProperties vulkan_viewport_creation_properties = {
         .allocator = creation_properties.allocator,
-        .device_index = 0,
+        .device_index = vulkan_device_id,
         .frames_in_flight = 2,
         .instance_extension_count = glfw_extension_count,
         .instance_extensions = glfw_extensions,
@@ -113,7 +153,7 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
 
     HipCreationProperties renderer_creation_properties = {
         .allocator = creation_properties.allocator,
-        .device_index = vulkan_viewport_creation_properties.device_index,
+        .device_index = creation_properties.device_index,
     };
     if (!app_init_renderer(self, renderer_creation_properties)) {
         goto failed;
@@ -238,7 +278,6 @@ void app_init_window(App* self, u32 width, u32 height) {
 }
 
 b8 app_init_viewport(App* self, VulkanViewportCreationProperties creation_properties) {
-    WW_LOG_INFO("Selected vk device: %d\n", creation_properties.device_index);
     if (vulkan_viewport_create(creation_properties, &self->viewport).failed) {
         return false;
     } 
