@@ -58,6 +58,7 @@ typedef struct App {
 } App;
 
 static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
+static void glfw_error_callback(i32 error_code, const char* descriptopn);
 static VkResult __ww_must_check vulkan_create_surface(VkInstance instance, void* window, VkSurfaceKHR* surface);
 static void app_init_window(App* self, u32 width, u32 height);
 static b8 __ww_must_check app_init_viewport(App* self, VulkanViewportCreationProperties creation_properties);
@@ -268,7 +269,8 @@ failed:
 }
 
 void app_init_window(App* self, u32 width, u32 height) {
-    WW_RUN_ONCE glfwInit();
+    glfwInit();
+    glfwSetErrorCallback(glfw_error_callback);
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
@@ -500,6 +502,10 @@ b8 app_handle_keys(App* self, f32 delta_time_in_seconds) {
 void framebuffer_resize_callback(GLFWwindow* window, int width, int height) {
     App* self = glfwGetWindowUserPointer(window);
     self->window_resized = true;
+}
+
+void glfw_error_callback(i32 error_code, const char* descriptopn) {
+    WW_LOG_ERROR("[App] glfw error = %d, %s\n", error_code, descriptopn);
 }
 
 VkResult vulkan_create_surface(VkInstance instance, void* window, VkSurfaceKHR* surface) {

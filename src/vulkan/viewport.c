@@ -417,7 +417,7 @@ VulkanResult vulkan_viewport_create_instance(viewport_ptr self, VulkanViewportCr
             }
 
             if (!layer_found) {
-                WW_LOG_ERROR("[VulkanViewport] Couldn't find %s vulkan layer\n", *required_layer);
+                WW_LOG_ERROR("[vulkan viewport] Couldn't find %s vulkan layer\n", *required_layer);
                 res = VULKAN_CHECK(VK_ERROR_LAYER_NOT_PRESENT);
                 goto failed;
             }
@@ -464,20 +464,20 @@ VulkanResult vulkan_viewport_pick_physical_device(viewport_ptr self, u32 device_
     }
 
     if (!queue_family_indices.graphics.found) {
-        WW_LOG_ERROR("[VulkanViewport] Couldn't find graphics queue family\n");
+        WW_LOG_ERROR("[vulkan viewport] Couldn't find graphics queue family\n");
         res = VULKAN_CHECK(VK_ERROR_INITIALIZATION_FAILED);
         goto failed;
     } else {
-        WW_LOG_INFO("[VulkanViewport] graphics queue family index: %d\n", queue_family_indices.graphics.index);
+        WW_LOG_INFO("[vulkan viewport] graphics queue family index: %d\n", queue_family_indices.graphics.index);
         self->queue_family_indices.graphics = queue_family_indices.graphics.index;
     }    
     
     if (!queue_family_indices.present.found) {
-        WW_LOG_ERROR("[VulkanViewport] Couldn't find present queue family\n");
+        WW_LOG_ERROR("[vulkan viewport] Couldn't find present queue family\n");
         res = VULKAN_CHECK(VK_ERROR_INITIALIZATION_FAILED);
         goto failed;
     } else {
-        WW_LOG_INFO("[VulkanViewport] present queue family index: %d\n", queue_family_indices.present.index);
+        WW_LOG_INFO("[vulkan viewport] present queue family index: %d\n", queue_family_indices.present.index);
         self->queue_family_indices.present = queue_family_indices.present.index;
     } 
 
@@ -496,7 +496,7 @@ VulkanResult vulkan_viewport_pick_physical_device(viewport_ptr self, u32 device_
         }
 
         if (!found_extension) {
-            WW_LOG_ERROR("[VulkanViewport] Couldn't find device extension: %s\n", *required_extension);
+            WW_LOG_ERROR("[vulkan viewport] Couldn't find device extension: %s\n", *required_extension);
             res = VULKAN_CHECK(VK_ERROR_EXTENSION_NOT_PRESENT);
             goto failed;
         }
@@ -520,7 +520,7 @@ VulkanResult vulkan_viewport_get_swap_chain_details(viewport_ptr self) {
     if (res.failed) {
         goto failed;
     } else if (ww_darray_len(&formats) == 0) {
-        WW_LOG_ERROR("[VulkanViewport] No device surface formats");
+        WW_LOG_ERROR("[vulkan viewport] No device surface formats");
         res = VULKAN_CHECK(VK_ERROR_INITIALIZATION_FAILED);
         goto failed;
     }
@@ -529,7 +529,7 @@ VulkanResult vulkan_viewport_get_swap_chain_details(viewport_ptr self) {
     if (res.failed) {
         goto failed;
     } else if (ww_darray_len(&present_modes) == 0) {
-        WW_LOG_ERROR("[VulkanViewport] No device surface present modes");
+        WW_LOG_ERROR("[vulkan viewport] No device surface present modes");
         res = VULKAN_CHECK(VK_ERROR_INITIALIZATION_FAILED);
         goto failed;
     }
@@ -548,7 +548,7 @@ VulkanResult vulkan_viewport_get_swap_chain_details(viewport_ptr self) {
     }
 
     if (!found_format) {
-        WW_LOG_WARN("[VulkanViewport] Couldn't find wanted surface fomat");
+        WW_LOG_WARN("[vulkan viewport] Couldn't find wanted surface fomat");
         self->swapchain.details.format = ww_darray_get(&formats, VkSurfaceFormatKHR, 0);
     }
 
@@ -569,7 +569,7 @@ VulkanResult vulkan_viewport_get_swap_chain_details(viewport_ptr self) {
     } else if (found_immediate_mode) {
         self->swapchain.details.present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
     } else {
-        WW_LOG_WARN("[viewport_ptr] Couldn't find wanted surface present mode\n");
+        WW_LOG_WARN("[vulkan viewport] Couldn't find wanted surface present mode\n");
         self->swapchain.details.present_mode = VK_PRESENT_MODE_FIFO_KHR;
     }
 
@@ -1353,7 +1353,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugUtilsMessageSeverity
                                               VkDebugUtilsMessageTypeFlagsEXT type,
                                               const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
                                               void* user_data) {
-    #define debug_callback_log_msg "[VulkanViewport] validation layer%s: %s\n"
+    #define debug_callback_log_msg "[vulkan viewport] validation layer%s: %s\n"
     const char* msg_type_str = "";
     switch (type) {
         case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT:
@@ -1383,7 +1383,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugUtilsMessageSeverity
             WW_LOG_ERROR(debug_callback_log_msg, msg_type_str, callback_data->pMessage); 
             break;
         default:
-            WW_LOG_ERROR("[VulkanViewport] validation layer%s and uknown msg severity: %s\n", msg_type_str, callback_data->pMessage); 
+            WW_LOG_ERROR("[vulkan viewport] validation layer%s and uknown msg severity: %s\n", msg_type_str, callback_data->pMessage); 
             break;
     }
 
