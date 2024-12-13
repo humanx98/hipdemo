@@ -331,13 +331,13 @@ void vulkan_viewport_destroy(viewport_ptr self) {
 
 ViewportResult vulkan_viewport_wait_idle(viewport_ptr self) {
     assert(self);
-    return to_viewport_result(VULKAN_CHECK(vkDeviceWaitIdle(self->device)));
+    return to_viewport_result(VULKAN_CHECK(vkQueueWaitIdle(self->present_queue)));
 }
 
 ViewportResult vulkan_viewport_set_resolution(viewport_ptr self, u32 width, u32 height) {
     assert(self);
 
-    VulkanResult res = VULKAN_CHECK(vkDeviceWaitIdle(self->device));
+    VulkanResult res = VULKAN_CHECK(vkQueueWaitIdle(self->present_queue));
     if (res.failed) {
         return to_viewport_result(res);
     }
