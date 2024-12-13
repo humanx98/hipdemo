@@ -179,11 +179,12 @@ RendererResult hiprt_renderer_render(renderer_ptr self) {
         std::vector<hiprtInstance> instances;
         std::vector<hiprtTransformHeader> transform_headers;
         std::vector<hiprtFrameMatrix> frame_matrices;
-        instances.reserve(self->scene->attached_object_instances.size());
-        transform_headers.reserve(self->scene->attached_object_instances.size());
-        frame_matrices.reserve(self->scene->attached_object_instances.size());
-        for (auto aoi : self->scene->attached_object_instances) {
-            instances.push_back(aoi->instance);
+        usize instances_count = ww_darray_len(&self->scene->attached_object_instances);
+        instances.reserve(instances_count);
+        transform_headers.reserve(instances_count);
+        frame_matrices.reserve(instances_count);
+        ww_darray_foreach_by_ref(&self->scene->attached_object_instances, object_instance_ptr, aoi) {
+            instances.push_back((*aoi)->instance);
             hiprtTransformHeader header = {
                 .frameIndex = (u32)transform_headers.size(),
                 .frameCount = 1,
@@ -191,9 +192,9 @@ RendererResult hiprt_renderer_render(renderer_ptr self) {
             transform_headers.push_back(header);
             hiprtFrameMatrix matrix = {
                 .matrix = {
-                    { aoi->transform.e[0][0], aoi->transform.e[0][1], aoi->transform.e[0][2], aoi->transform.e[0][3] },
-                    { aoi->transform.e[1][0], aoi->transform.e[1][1], aoi->transform.e[1][2], aoi->transform.e[1][3] },
-                    { aoi->transform.e[2][0], aoi->transform.e[2][1], aoi->transform.e[2][2], aoi->transform.e[2][3] },
+                    { (*aoi)->transform.e[0][0], (*aoi)->transform.e[0][1], (*aoi)->transform.e[0][2], (*aoi)->transform.e[0][3] },
+                    { (*aoi)->transform.e[1][0], (*aoi)->transform.e[1][1], (*aoi)->transform.e[1][2], (*aoi)->transform.e[1][3] },
+                    { (*aoi)->transform.e[2][0], (*aoi)->transform.e[2][1], (*aoi)->transform.e[2][2], (*aoi)->transform.e[2][3] },
                 },
             };
             frame_matrices.push_back(matrix);

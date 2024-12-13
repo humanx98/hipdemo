@@ -16,6 +16,8 @@
 #include <assimp/postprocess.h>
 
 #define USE_HIPRT_RENDERER 1
+#define USE_VK_VIEWPORT_NO_GP 1
+
 #if USE_HIPRT_RENDERER
 #include <ww/hiprt/renderer.h>
 typedef HipRTCreationProperties HipCreationProperties;
@@ -24,7 +26,6 @@ typedef HipRTCreationProperties HipCreationProperties;
 #include <ww/hip/renderer.h>
 #endif
 
-#define USE_VK_VIEWPORT_NO_GP 1
 #if USE_VK_VIEWPORT_NO_GP
 #include <ww/vulkan/viewport_no_gp.h>
 typedef VulkanViewportNoGPCreationProperties VulkanViewportCreationProperties;

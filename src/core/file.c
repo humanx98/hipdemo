@@ -7,7 +7,7 @@ b8 ww_read_file_to_darray(const char* file, WwDArray(u8)* darr) {
     assert(file);
     assert(darr);
 
-    FILE *fp = fopen(file, "r");
+    FILE *fp = fopen(file, "rb");
     if (fp == NULL) {
         WW_LOG_ERROR("Couldn't open file: %s\n", file);
         return false;

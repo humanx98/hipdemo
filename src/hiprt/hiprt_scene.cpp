@@ -44,6 +44,7 @@ RendererResult hiprt_scene_create(HipRTRenderContext context, Scene* scene) {
 RendererResult hiprt_scene_init(scene_ptr self, HipRTRenderContext context) {
     *self = {
         .context = context,
+        .attached_object_instances = ww_darray_init(context.allocator, object_instance_ptr),
     };
     return renderer_result(RENDERER_SUCCESS);
 }
@@ -52,7 +53,7 @@ void hiprt_scene_destroy(scene_ptr self) {
     assert(self);
 
     RendererResult res = {};
-    self->attached_object_instances.~vector();
+    ww_darray_deinit(&self->attached_object_instances);
 
     if (self->scene_input.instanceTransformHeaders) {
         res = HIP_CHECK(hipFree(self->scene_input.instanceTransformHeaders));
@@ -85,6 +86,8 @@ RendererResult hiprt_scene_set_camera(scene_ptr self, camera_ptr camera) {
 RendererResult hiprt_scene_attach_object_instance(scene_ptr self, object_instance_ptr object_instance) {
     assert(self);
     assert(object_instance);
-    self->attached_object_instances.push_back(object_instance);
+    if (!ww_darray_append(&self->attached_object_instances, object_instance)) {
+        return renderer_result(RENDERER_ERROR_OUT_OF_HOST_MEMORY);
+    }
     return renderer_result(RENDERER_SUCCESS);
 }

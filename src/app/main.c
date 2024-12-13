@@ -4,13 +4,13 @@
 #include <ww/math.h>
 #include <ww/collections/hash_map.h>
 
-u32 i32_get_hash(const void* key) {
-    return *(i32*)key;
-}
+// u32 i32_get_hash(const void* key) {
+//     return *(i32*)key;
+// }
 
-b8 i32_compare_keys(const void* a, const void* b) {
-    return *(i32*)a == *(i32*)b;
-}
+// b8 i32_compare_keys(const void* a, const void* b) {
+//     return *(i32*)a == *(i32*)b;
+// }
 
 i32 main() {
     i32 retvalue = 0;

@@ -5,8 +5,9 @@
 static inline usize __ww_must_check grow_capacity(usize current, usize minimum);
 static inline void memory_copy(void* dst, const void* src, usize len, usize elem_size);
 
-static inline b8 valid(const _WwDArray* self) {
-    return self != NULL && self->elem_size > 0;
+static inline void assert_darray(const _WwDArray* self) {
+    assert(self);
+    assert(self->elem_size > 0);
 }
 
 usize grow_capacity(usize current, usize minimum) {
@@ -23,7 +24,7 @@ void memory_copy(void* dst, const void* src, usize len, usize elem_size) {
 }
 
 void ww_darray_deinit(_WwDArray* self) {
-    assert(valid(self));
+    assert_darray(self);
 
     if (self->ptr) {
         ww_allocator_free(self->allocator, self->ptr);
@@ -32,7 +33,7 @@ void ww_darray_deinit(_WwDArray* self) {
 }
 
 b8 ww_darray_ensure_total_capacity_precise(_WwDArray* self, usize new_capacity) {
-    assert(valid(self));
+    assert_darray(self);
 
     if (self->capacity >= new_capacity) {
         return true;
@@ -53,7 +54,7 @@ b8 ww_darray_ensure_total_capacity_precise(_WwDArray* self, usize new_capacity) 
 }
 
 b8 ww_darray_ensure_total_capacity(_WwDArray* self, usize new_capacity) {
-    assert(valid(self));
+    assert_darray(self);
 
     if (self->capacity >= new_capacity) {
         return true;
@@ -67,7 +68,7 @@ b8 ww_darray_ensure_total_capacity(_WwDArray* self, usize new_capacity) {
 }
 
 b8 ww_darray_resize(_WwDArray* self, usize new_len) {
-    assert(valid(self));
+    assert_darray(self);
 
     if (ww_darray_ensure_total_capacity(self, new_len)) {
         ww_darray_resize_assume_capacity(self, new_len);
@@ -78,14 +79,14 @@ b8 ww_darray_resize(_WwDArray* self, usize new_len) {
 }
 
 void ww_darray_resize_assume_capacity(_WwDArray* self, usize new_len) {
-    assert(valid(self));
+    assert_darray(self);
     assert(new_len <= self->capacity);    
 
     self->len = new_len;
 }
 
 b8 ww_darray_append_many(_WwDArray* self, const void* elems, usize n) {
-    assert(valid(self));
+    assert_darray(self);
 
     if (n == 0) {
         return true;
@@ -100,7 +101,7 @@ b8 ww_darray_append_many(_WwDArray* self, const void* elems, usize n) {
 }
 
 void ww_darray_append_many_assume_capacity(_WwDArray* self, const void* elems, usize n) {
-    assert(valid(self));
+    assert_darray(self);
     usize newlen = self->len + n;
     assert(newlen <= self->capacity);
 
@@ -110,27 +111,27 @@ void ww_darray_append_many_assume_capacity(_WwDArray* self, const void* elems, u
 }
 
 inline usize ww_darray_elem_size(const _WwDArray* self) {
-    assert(valid(self));
+    assert_darray(self);
     return self->elem_size;
 }
 
 inline usize ww_darray_capacity(const _WwDArray* self) {
-    assert(valid(self));
+    assert_darray(self);
     return self->capacity;
 }
 
 inline usize ww_darray_len(const _WwDArray* self) {
-    assert(valid(self));
+    assert_darray(self);
     return self->len;
 }
 
 inline void* ww_darray_ptr(const _WwDArray* self) {
-    assert(valid(self));
+    assert_darray(self);
     return self->ptr;
 }
 
 inline void* _ww_darray_get(const _WwDArray* self, usize index, const char* file, i32 line) {
-    assert(valid(self));
+    assert_darray(self);
 #ifndef NDEBUG
     if (index >= self->len) {
         WW_EXIT_WITH_MSG("%s:%d: attemp to acces an item out of range, elem index = %zu, WwDArray len = %zu\n", file, line, index, self->len);
