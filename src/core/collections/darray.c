@@ -110,6 +110,23 @@ void ww_darray_append_many_assume_capacity(_WwDArray* self, const void* elems, u
     memory_copy(ww_darray_get_void_ref(self, prevlen), elems, n, self->elem_size);
 }
 
+b8 __ww_must_check ww_darray_append_darray(_WwDArray* self, _WwDArray* arr) {
+    return ww_darray_append_many(self, arr->ptr, arr->len);
+}
+
+void ww_darray_swap_remove(_WwDArray* self, usize i) {
+    assert_darray(self);
+    assert(i < self->len);
+
+    if (self->len - 1 == i) {
+        self->len--;
+        return;
+    }
+
+    memory_copy(ww_darray_get_void_ref(self, i), ww_darray_get_void_ref(self, self->len - 1), 1, self->elem_size);
+    self->len--;
+}
+
 inline usize ww_darray_elem_size(const _WwDArray* self) {
     assert_darray(self);
     return self->elem_size;

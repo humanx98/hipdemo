@@ -9,11 +9,16 @@ extern "C" {
 
 typedef struct scene_ptr_impl {
     HipRTRenderContext context;
-    hiprtSceneBuildInput scene_input;
-    hiprtDevicePtr scene_temp;
+    hiprtSceneBuildInput input;
+    hiprtDevicePtr input_buff;
+    usize input_buff_size;
     hiprtScene scene;
+    hiprtDevicePtr scene_buff;
+    usize scene_buff_size;
+    b8 rebuild;
     camera_ptr camera;
     WwDArray(object_instance_ptr) attached_object_instances;
 } scene_ptr_impl;
 
 RendererResult __ww_must_check hiprt_scene_create(HipRTRenderContext context, Scene* scene);
+RendererResult __ww_must_check hiprt_scene_rebuild(scene_ptr self);

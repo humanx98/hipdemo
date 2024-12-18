@@ -3,7 +3,6 @@
 #include <hip/hip_runtime.h>
 #include <hiprt/hiprt.h>
 #include <string>
-#include <vector>
 #include "hiprt_common.h"
 #include "hiprt_object_instance.h"
 #include "hiprt_triangle_mesh.h"
@@ -174,87 +173,9 @@ RendererResult hiprt_renderer_render(renderer_ptr self) {
     assert(self->scene);
 
     // scene creation
-    if (!self->scene->scene)
-    {
-        std::vector<hiprtInstance> instances;
-        std::vector<hiprtTransformHeader> transform_headers;
-        std::vector<hiprtFrameMatrix> frame_matrices;
-        usize instances_count = ww_darray_len(&self->scene->attached_object_instances);
-        instances.reserve(instances_count);
-        transform_headers.reserve(instances_count);
-        frame_matrices.reserve(instances_count);
-        ww_darray_foreach_by_ref(&self->scene->attached_object_instances, object_instance_ptr, aoi) {
-            instances.push_back((*aoi)->instance);
-            hiprtTransformHeader header = {
-                .frameIndex = (u32)transform_headers.size(),
-                .frameCount = 1,
-            };
-            transform_headers.push_back(header);
-            hiprtFrameMatrix matrix = {
-                .matrix = {
-                    { (*aoi)->transform.e[0][0], (*aoi)->transform.e[0][1], (*aoi)->transform.e[0][2], (*aoi)->transform.e[0][3] },
-                    { (*aoi)->transform.e[1][0], (*aoi)->transform.e[1][1], (*aoi)->transform.e[1][2], (*aoi)->transform.e[1][3] },
-                    { (*aoi)->transform.e[2][0], (*aoi)->transform.e[2][1], (*aoi)->transform.e[2][2], (*aoi)->transform.e[2][3] },
-                },
-            };
-            frame_matrices.push_back(matrix);
-        }
-
-        self->scene->scene_input.instanceCount = instances.size();
-        self->scene->scene_input.instanceMasks = nullptr;
-        RendererResult res = HIP_CHECK(hipMalloc(&self->scene->scene_input.instances, instances.size() * sizeof(hiprtInstance)));
-        if (res.failed) {
-            return res;
-        }
-        res = HIP_CHECK(hipMemcpyHtoD(self->scene->scene_input.instances, instances.data(), instances.size() * sizeof(hiprtInstance)));
-        if (res.failed) {
-            return res;
-        }
-
-        res = HIP_CHECK(hipMalloc(&self->scene->scene_input.instanceTransformHeaders, transform_headers.size() * sizeof(hiprtTransformHeader)));
-        if (res.failed) {
-            return res;
-        }
-
-        res = HIP_CHECK(hipMemcpyHtoD(self->scene->scene_input.instanceTransformHeaders, transform_headers.data(), transform_headers.size() * sizeof(hiprtTransformHeader)));
-        if (res.failed) {
-            return res;
-        }
-
-        self->scene->scene_input.frameType = hiprtFrameTypeMatrix;
-        self->scene->scene_input.frameCount = frame_matrices.size();
-        res = HIP_CHECK(hipMalloc(&self->scene->scene_input.instanceFrames, frame_matrices.size() * sizeof(hiprtFrameMatrix)));
-        if (res.failed) {
-            return res;
-        }
-
-        res = HIP_CHECK(hipMemcpyHtoD(self->scene->scene_input.instanceFrames, frame_matrices.data(), frame_matrices.size() * sizeof(hiprtFrameMatrix)));
-        if (res.failed) {
-            return res;
-        }
-
-        usize scene_temp_size;
-        hiprtBuildOptions options = {
-            .buildFlags = hiprtBuildFlagBitPreferFastBuild,
-        };
-        res = HIPRT_CHECK(hiprtGetSceneBuildTemporaryBufferSize(self->context.hiprt, self->scene->scene_input, options, scene_temp_size));
-        if (res.failed) {
-            return res;
-        }
-
-        res = HIP_CHECK(hipMalloc(&self->scene->scene_temp, scene_temp_size));
-        if (res.failed) {
-            return res;
-        }
-
-        res = HIPRT_CHECK(hiprtCreateScene(self->context.hiprt, self->scene->scene_input, options, self->scene->scene));
-        if (res.failed) {
-            return res;
-        }
-        res = HIPRT_CHECK(hiprtBuildScene(self->context.hiprt, hiprtBuildOperationBuild, self->scene->scene_input, options, self->scene->scene_temp, 0, self->scene->scene));
-        if (res.failed) {
-            return res;
-        }
+    RendererResult result;
+    if (self->scene->rebuild && (result = hiprt_scene_rebuild(self->scene)).failed) {
+        return result;
     }
 
     device::Camera camera = {
@@ -274,9 +195,9 @@ RendererResult hiprt_renderer_render(renderer_ptr self) {
         .vup = self->scene->camera->vup,
     };
 
-    hiprtInt2 res = {(i32)self->width, (i32)self->height};
+    hiprtInt2 resolution = {(i32)self->width, (i32)self->height};
     b8 flip_y = true;
-    void *args[] = {&self->scene->scene, &camera, &self->pixels, &res, &flip_y};
+    void *args[] = {&self->scene->scene, &camera, &self->pixels, &resolution, &flip_y};
     int3 block = { 1024, 1, 1 };
     int3 grid = { ((self->width * self->height) + block.x - 1) / block.x, 1, 1 };
     return HIP_CHECK(hipModuleLaunchKernel(

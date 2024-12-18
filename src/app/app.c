@@ -15,8 +15,8 @@
 #include <assimp/mesh.h>
 #include <assimp/postprocess.h>
 
-#define USE_HIPRT_RENDERER 1
-#define USE_VK_VIEWPORT_NO_GP 1
+#define USE_HIPRT_RENDERER true
+#define USE_VK_VIEWPORT_NO_GP true
 
 #if USE_HIPRT_RENDERER
 #include <ww/hiprt/renderer.h>
@@ -42,12 +42,9 @@ typedef struct App {
     Renderer renderer;
     Camera camera;
     Scene scene;
-    struct {
-        b8 w_pressed;
-        b8 s_pressed;
-        b8 a_pressed;
-        b8 d_pressed;
-    } keys;
+    b8 test_attaching_objects;
+    b8 test_detaching_objects;
+    usize attached_objects_count;
     struct {
         vec3 look_from;
         vec3 look_at;
@@ -161,7 +158,7 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
         goto failed;
     }
 
-    if (!app_load_lucy(self)) {
+    if (!app_load_cornellplot(self)) {
         goto failed;
     }
 
@@ -209,26 +206,46 @@ void app_destroy(App* self) {
 AppResult app_run(App* self) {
     assert(self);
     clock_t delta_time = 0;
-    clock_t time = 0;
+    clock_t fps_time = 0;
+    clock_t attach_detach_time = 0;
     clock_t begin_frame = clock();
     clock_t end_frame = clock();
     u32 frames = 0;
     const u32 render_iterations = 1;
     ViewportResult viewport_result = {};
+
     while (!glfwWindowShouldClose(self->window)) {
         delta_time = end_frame - begin_frame;
-        time += delta_time;
         frames += render_iterations;
-        f64 time_in_seconds = (time / (f64)CLOCKS_PER_SEC);
-        if (time_in_seconds > 1.0) { // every second
+
+        fps_time += delta_time;
+        f64 fps_time_in_seconds = (fps_time / (f64)CLOCKS_PER_SEC);
+        if (fps_time_in_seconds > 1.0) { // every second
             WW_LOG_INFO(
                 "[App] Iterations per second = %f, Time per iteration = %fms\n",
-                frames / time_in_seconds,
-                time_in_seconds * 1000.0 / frames
+                frames / fps_time_in_seconds,
+                fps_time_in_seconds * 1000.0 / frames
             );
             frames = 0;
-            time -= CLOCKS_PER_SEC;
+            fps_time = 0;
         }
+
+        attach_detach_time += delta_time;
+        if ((attach_detach_time / (f64)CLOCKS_PER_SEC) > 0.15) {
+            attach_detach_time = 0;
+            if (self->test_attaching_objects
+                && self->attached_objects_count < ww_darray_len(&self->object_instances)
+                && scene_attach_object_instance(self->scene, ww_darray_get(&self->object_instances, object_instance_ptr, self->attached_objects_count++)).failed) {
+                goto failed;
+            }
+
+            if (self->test_detaching_objects
+                && self->attached_objects_count > 1
+                && scene_detach_object_instance(self->scene, ww_darray_get(&self->object_instances, object_instance_ptr, --self->attached_objects_count)).failed) {
+                goto failed;
+            }
+        }
+
         begin_frame = clock();
         {
             glfwPollEvents();
@@ -376,9 +393,7 @@ b8 app_load_scene(App* self, const char* file) {
             goto failed_scene_import;
         }
 
-        // if (object_instance_set_transform(object_instance, mat4_translate(0.0f, 3.0f, 0.0f)).failed) {
-        //     goto failed_scene_import;
-        // }
+        self->attached_objects_count++;
     }
 
     ww_darray_deinit(&indices);
@@ -451,6 +466,8 @@ b8 app_handle_resize(App* self) {
 }
 
 b8 app_handle_keys(App* self, f32 delta_time_in_seconds) {
+    self->test_detaching_objects = glfwGetKey(self->window, GLFW_KEY_LEFT_SHIFT) && glfwGetKey(self->window, GLFW_KEY_COMMA);
+    self->test_attaching_objects = !self->test_detaching_objects && glfwGetKey(self->window, GLFW_KEY_LEFT_SHIFT) && glfwGetKey(self->window, GLFW_KEY_PERIOD);
     b8 w_pressed = glfwGetKey(self->window, GLFW_KEY_W) == GLFW_PRESS;
     b8 s_pressed = glfwGetKey(self->window, GLFW_KEY_S) == GLFW_PRESS;
     b8 a_pressed = glfwGetKey(self->window, GLFW_KEY_A) == GLFW_PRESS;

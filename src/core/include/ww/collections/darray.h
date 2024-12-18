@@ -18,6 +18,8 @@ b8 __ww_must_check ww_darray_resize(_WwDArray* self, usize new_len);
 void ww_darray_resize_assume_capacity(_WwDArray* self, usize new_len);
 b8 __ww_must_check ww_darray_append_many(_WwDArray* self, const void* elems, usize n);
 void ww_darray_append_many_assume_capacity(_WwDArray* self, const void* elems, usize n);
+b8 __ww_must_check ww_darray_append_darray(_WwDArray* self, _WwDArray* arr);
+void ww_darray_swap_remove(_WwDArray* self, usize i);
 usize __ww_must_check ww_darray_elem_size(const _WwDArray* self);
 usize __ww_must_check ww_darray_capacity(const _WwDArray* self);
 usize __ww_must_check ww_darray_len(const _WwDArray* self);
