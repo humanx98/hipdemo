@@ -1,5 +1,6 @@
 #include "hiprt_object_instance.h"
 #include "hiprt_triangle_mesh.h"
+#include "hiprt_scene.h"
 #include <cassert>
 
 extern "C" {
@@ -44,6 +45,7 @@ RendererResult hiprt_object_instance_init(object_instance_ptr self, HipRTRenderC
             .geometry = triangle_mesh->geometry,
         },
         .transform = MAT4_IDENTITY,
+        .scenes = ww_darray_init(context.allocator, scene_ptr),
     };
 
     return renderer_result(RENDERER_SUCCESS);
@@ -51,11 +53,17 @@ RendererResult hiprt_object_instance_init(object_instance_ptr self, HipRTRenderC
 
 void hiprt_object_instance_destroy(object_instance_ptr self) {
     assert(self);
+    assert(ww_darray_len(&self->scenes) == 0);
+
+    ww_darray_deinit(&self->scenes);
     ww_allocator_free(self->context.allocator, self);
 }
 
 RendererResult hiprt_object_instance_set_transform(object_instance_ptr self, mat4 transform) {
     assert(self);
     self->transform = transform;
+    ww_darray_foreach_by_ref(&self->scenes, scene_ptr, scene) {
+        (*scene)->rebuild = true;
+    }
     return renderer_result(RENDERER_SUCCESS);
 }

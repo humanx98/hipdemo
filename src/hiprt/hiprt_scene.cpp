@@ -218,6 +218,11 @@ RendererResult hiprt_scene_attach_object_instance(scene_ptr self, object_instanc
     if (!ww_darray_append(&self->attached_object_instances, object_instance)) {
         return renderer_result(RENDERER_ERROR_OUT_OF_HOST_MEMORY);
     }
+
+    if (!ww_darray_append(&object_instance->scenes, self)) {
+        return renderer_result(RENDERER_ERROR_OUT_OF_HOST_MEMORY);
+    }
+
     self->rebuild = true;
     return renderer_result(RENDERER_SUCCESS);
 }
@@ -230,6 +235,12 @@ RendererResult hiprt_scene_detach_object_instance(scene_ptr self, object_instanc
         if (object_instance == ww_darray_get(&self->attached_object_instances, object_instance_ptr, i)) {
             ww_darray_swap_remove(&self->attached_object_instances, i);
             self->rebuild = true;
+            for (usize j = 0; j < ww_darray_len(&object_instance->scenes); j++) {
+                if (self == ww_darray_get(&object_instance->scenes, scene_ptr, j)) {
+                    ww_darray_swap_remove(&object_instance->scenes, j);
+                    break;
+                }
+            }
             return renderer_result(RENDERER_SUCCESS);
         }
     }

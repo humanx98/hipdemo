@@ -45,6 +45,9 @@ typedef struct App {
     b8 test_attaching_objects;
     b8 test_detaching_objects;
     usize attached_objects_count;
+    b8 test_upscale;
+    b8 test_downscale;
+    f32 scale;
     struct {
         vec3 look_from;
         vec3 look_at;
@@ -131,6 +134,7 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
         .window_resized = true,
         .triangle_meshes = ww_darray_init(creation_properties.allocator, TriangleMesh),
         .object_instances = ww_darray_init(creation_properties.allocator, ObjectInstance),
+        .scale = 1.0f,
     };
 
     app_init_window(self, creation_properties.width, creation_properties.height);
@@ -174,6 +178,9 @@ void app_destroy(App* self) {
     assert(self);
 
     if (self->scene.ptr) {
+        for (usize i = 0; i < self->attached_objects_count; i++) {
+            RendererResult res = scene_detach_object_instance(self->scene, ww_darray_get(&self->object_instances, object_instance_ptr, i));
+        }
         scene_destroy(self->scene);
     }
 
@@ -220,7 +227,7 @@ AppResult app_run(App* self) {
 
         fps_time += delta_time;
         f64 fps_time_in_seconds = (fps_time / (f64)CLOCKS_PER_SEC);
-        if (fps_time_in_seconds > 1.0) { // every second
+        if (fps_time_in_seconds > 1.0) {
             WW_LOG_INFO(
                 "[App] Iterations per second = %f, Time per iteration = %fms\n",
                 frames / fps_time_in_seconds,
@@ -243,6 +250,20 @@ AppResult app_run(App* self) {
                 && self->attached_objects_count > 1
                 && scene_detach_object_instance(self->scene, ww_darray_get(&self->object_instances, object_instance_ptr, --self->attached_objects_count)).failed) {
                 goto failed;
+            }
+        }
+
+        if (self->test_upscale || self->test_downscale) {
+            if (self->test_upscale) {
+                self->scale += delta_time / (f32)CLOCKS_PER_SEC;
+            } else if (self->test_downscale) {
+                self->scale -= delta_time / (f32)CLOCKS_PER_SEC;
+            }
+            self->scale = WW_CLAMP(self->scale, 0.5f, 1.0f);
+            ww_darray_foreach_by_ref(&self->object_instances, ObjectInstance, oi) {
+                if (object_instance_set_transform(*oi, mat4_scale(self->scale, self->scale, self->scale)).failed) {
+                    goto failed;
+                }
             }
         }
 
@@ -468,6 +489,8 @@ b8 app_handle_resize(App* self) {
 b8 app_handle_keys(App* self, f32 delta_time_in_seconds) {
     self->test_detaching_objects = glfwGetKey(self->window, GLFW_KEY_LEFT_SHIFT) && glfwGetKey(self->window, GLFW_KEY_COMMA);
     self->test_attaching_objects = !self->test_detaching_objects && glfwGetKey(self->window, GLFW_KEY_LEFT_SHIFT) && glfwGetKey(self->window, GLFW_KEY_PERIOD);
+    self->test_downscale = glfwGetKey(self->window, GLFW_KEY_LEFT_CONTROL) && glfwGetKey(self->window, GLFW_KEY_COMMA);
+    self->test_upscale = !self->test_downscale && glfwGetKey(self->window, GLFW_KEY_LEFT_CONTROL) && glfwGetKey(self->window, GLFW_KEY_PERIOD);
     b8 w_pressed = glfwGetKey(self->window, GLFW_KEY_W) == GLFW_PRESS;
     b8 s_pressed = glfwGetKey(self->window, GLFW_KEY_S) == GLFW_PRESS;
     b8 a_pressed = glfwGetKey(self->window, GLFW_KEY_A) == GLFW_PRESS;
