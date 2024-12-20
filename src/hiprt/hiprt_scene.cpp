@@ -143,13 +143,7 @@ RendererResult hiprt_scene_rebuild_input(scene_ptr self) {
             .frameCount = 1,
         };
         transform_headers.push_back(header);
-        hiprtFrameMatrix matrix = {
-            .matrix = {
-                { (*aoi)->transform.e[0][0], (*aoi)->transform.e[0][1], (*aoi)->transform.e[0][2], (*aoi)->transform.e[0][3] },
-                { (*aoi)->transform.e[1][0], (*aoi)->transform.e[1][1], (*aoi)->transform.e[1][2], (*aoi)->transform.e[1][3] },
-                { (*aoi)->transform.e[2][0], (*aoi)->transform.e[2][1], (*aoi)->transform.e[2][2], (*aoi)->transform.e[2][3] },
-            },
-        };
+        hiprtFrameMatrix matrix = mat4_to_hiprt_frame_matrix((*aoi)->transform);
         frame_matrices.push_back(matrix);
     }
 

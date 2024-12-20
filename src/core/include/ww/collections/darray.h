@@ -29,9 +29,9 @@ void* __ww_must_check _ww_darray_get(const _WwDArray* self, usize index, const c
 #define WwDArray(type) _WwDArray
 #define ww_darray_init_with_elem_size(alloc, el_sz) (WwDArray(type)){ .allocator = alloc, .elem_size = el_sz }
 #define ww_darray_init(allocator, type) ww_darray_init_with_elem_size(allocator, sizeof(type))
-#define ww_darray_get_void_ref(self, index) _ww_darray_get(self, index, __FILE__, __LINE__) 
-#define ww_darray_get_ref(self, type, index) (type*)ww_darray_get_void_ref(self, index) 
-#define ww_darray_get(self, type, index) *ww_darray_get_ref(self, type, index) 
+#define ww_darray_get_void_ref(self, index) (_ww_darray_get(self, index, __FILE__, __LINE__))
+#define ww_darray_get_ref(self, type, index) ((type*)ww_darray_get_void_ref(self, index))
+#define ww_darray_get(self, type, index) (*ww_darray_get_ref(self, type, index))
 #define ww_darray_foreach_by_ref(self, type, var) for (type* var = (type*)(self)->ptr; var < (type*)(self)->ptr + (self)->len; ++var) 
 #define ww_darray_append(self, elem) ww_darray_append_many(self, &elem, 1)
 #define ww_darray_append_assume_capacity(self, elem) ww_darray_append_many_assume_capacity(self, &elem, 1)
