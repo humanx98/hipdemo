@@ -1,4 +1,4 @@
-#include <ww/vulkan/viewport_no_gp.h>
+#include <ww/vulkan/viewport.h>
 #include <ww/collections/darray.h>
 #include <vulkan/vulkan_core.h>
 #include <string.h>
@@ -81,8 +81,8 @@ static void* __ww_must_check vulkan_viewport_no_gp_get_mapped_input(viewport_ptr
 static ViewportResult __ww_must_check vulkan_viewport_no_gp_set_resolution(viewport_ptr self, u32 width, u32 height);
 static void vulkan_viewport_no_gp_get_resolution(viewport_ptr self, u32* width, u32* height);
 
-static VulkanResult __ww_must_check vulkan_viewport_no_gp_init_vulkan(viewport_ptr self, VulkanViewportNoGPCreationProperties creation_properties);
-static VulkanResult __ww_must_check vulkan_viewport_no_gp_create_instance(viewport_ptr self, VulkanViewportNoGPCreationProperties creation_properties, const VkDebugUtilsMessengerCreateInfoEXT* debug_create_info);
+static VulkanResult __ww_must_check vulkan_viewport_no_gp_init_vulkan(viewport_ptr self, VulkanViewportCreationProperties creation_properties);
+static VulkanResult __ww_must_check vulkan_viewport_no_gp_create_instance(viewport_ptr self, VulkanViewportCreationProperties creation_properties, const VkDebugUtilsMessengerCreateInfoEXT* debug_create_info);
 static VulkanResult __ww_must_check vulkan_viewport_no_gp_pick_physical_device(viewport_ptr self, u32 device_index);
 static VulkanResult __ww_must_check vulkan_viewport_no_gp_get_swap_chain_details(viewport_ptr self);
 static VulkanResult __ww_must_check vulkan_viewport_no_gp_create_logical_device(viewport_ptr self);
@@ -97,7 +97,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugUtilsMessageS
 static void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, TransitionImageLayoutInfo info);
 static ViewportResult __ww_must_check to_viewport_result(VulkanResult res);
 
-VulkanResult vulkan_viewport_no_gp_create(VulkanViewportNoGPCreationProperties creation_properties, Viewport* viewport) {
+VulkanResult vulkan_viewport_no_gp_create(VulkanViewportCreationProperties creation_properties, Viewport* viewport) {
     assert(viewport);
 
     ww_auto_type alloc_result = ww_allocator_alloc_type(creation_properties.allocator, viewport_ptr_impl);
@@ -220,7 +220,7 @@ void vulkan_viewport_no_gp_get_resolution(viewport_ptr self, u32* width, u32* he
     *height = self->swapchain.details.extent.height;
 }
 
-VulkanResult vulkan_viewport_no_gp_init_vulkan(viewport_ptr self, VulkanViewportNoGPCreationProperties creation_properties) {
+VulkanResult vulkan_viewport_no_gp_init_vulkan(viewport_ptr self, VulkanViewportCreationProperties creation_properties) {
     *self = (viewport_ptr_impl) {
         .allocator = creation_properties.allocator,
         .frames_in_flight = creation_properties.frames_in_flight,
@@ -300,7 +300,7 @@ VulkanResult vulkan_viewport_no_gp_init_vulkan(viewport_ptr self, VulkanViewport
     return res;
 }
 
-VulkanResult vulkan_viewport_no_gp_create_instance(viewport_ptr self, VulkanViewportNoGPCreationProperties creation_properties, const VkDebugUtilsMessengerCreateInfoEXT* debug_create_info) {
+VulkanResult vulkan_viewport_no_gp_create_instance(viewport_ptr self, VulkanViewportCreationProperties creation_properties, const VkDebugUtilsMessengerCreateInfoEXT* debug_create_info) {
     WwDArray(const char*) required_extensions = ww_darray_init(self->allocator, const char*);
     WwDArray(VkLayerProperties) available_layers = ww_darray_init(self->allocator, VkLayerProperties);
     VulkanResult res = {};

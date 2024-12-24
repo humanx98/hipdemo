@@ -14,7 +14,6 @@ file(MAKE_DIRECTORY ${spv_bin_dir})
 set(HEADERS
     include/ww/vulkan/common.h
     include/ww/vulkan/renderer.h
-    include/ww/vulkan/viewport_no_gp.h
     include/ww/vulkan/viewport.h
     vma.h
 )

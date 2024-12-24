@@ -26,12 +26,9 @@ typedef HipRTCreationProperties HipCreationProperties;
 #include <ww/hip/renderer.h>
 #endif
 
-#if USE_VK_VIEWPORT_NO_GP
-#include <ww/vulkan/viewport_no_gp.h>
-typedef VulkanViewportNoGPCreationProperties VulkanViewportCreationProperties;
-#define vulkan_viewport_create vulkan_viewport_no_gp_create
-#else
 #include <ww/vulkan/viewport.h>
+#if USE_VK_VIEWPORT_NO_GP
+#define vulkan_viewport_create vulkan_viewport_no_gp_create
 #endif
 
 typedef struct App {

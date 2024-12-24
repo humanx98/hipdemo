@@ -17,3 +17,4 @@ typedef struct VulkanViewportCreationProperties {
 } VulkanViewportCreationProperties;
 
 VulkanResult __ww_must_check vulkan_viewport_create(VulkanViewportCreationProperties creation_properties, Viewport* viewport);
+VulkanResult __ww_must_check vulkan_viewport_no_gp_create(VulkanViewportCreationProperties creation_properties, Viewport* viewport);
