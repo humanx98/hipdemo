@@ -11,7 +11,7 @@
 
 extern "C" {
 #include <ww/hip/common.h>
-#include <ww/renderer.h>
+#include <ww/renderer/renderer.h>
 #include <ww/renderer/camera_def_impl.h>
 #include <ww/collections/darray.h>
 #include <ww/file.h>
@@ -24,14 +24,23 @@ typedef struct renderer_ptr_impl {
     u32 width;
     u32 height;
     HipRTRenderContext context;
-    hipDeviceptr_t pixels;
+    struct {
+        hipExternalMemory_t external_memory;
+        hipDeviceptr_t ptr;
+    } pixels;
+    u32 frames_in_flight;
+    u32 current_frame;
+    WwDArray(hipExternalSemaphore_t) wait_semaphores;
+    WwDArray(hipExternalSemaphore_t) signal_semaphores;
     hipModule_t module;
     hipFunction_t kernel_func;
+    hipStream_t stream;
     scene_ptr scene;
 } renderer_ptr_impl;
 
-static RendererResult __ww_must_check hiprt_renderer_init(renderer_ptr self, HipRTCreationProperties creation_properties);
+static void hiprt_renderer_destroy(renderer_ptr self);
 static RendererResult __ww_must_check hiprt_renderer_set_target_resolution(renderer_ptr self, u32 width, u32 height);
+static RendererResult __ww_must_check hiprt_renderer_set_external_memory(renderer_ptr self, ViewportExternalHandle external_memory, u32 width, u32 height);
 static RendererResult __ww_must_check hiprt_renderer_render(renderer_ptr self);
 static RendererResult __ww_must_check hiprt_renderer_copy_target_to(renderer_ptr self, void* dst);
 static RendererResult __ww_must_check hiprt_renderer_set_scene(renderer_ptr self, scene_ptr scene);
@@ -39,7 +48,8 @@ static RendererResult __ww_must_check hiprt_renderer_create_scene(renderer_ptr s
 static RendererResult __ww_must_check hiprt_renderer_create_camera(renderer_ptr self, Camera* camera);
 static RendererResult __ww_must_check hiprt_renderer_create_object_instance(renderer_ptr self, const triangle_mesh_ptr triangle_mesh, ObjectInstance* object_instance);
 static RendererResult __ww_must_check hiprt_renderer_create_triangle_mesh(renderer_ptr self, TriangleMeshCreationProperties creation_properties, TriangleMesh* triangle_mesh);
-static void hiprt_renderer_destroy(renderer_ptr self);
+static RendererResult __ww_must_check hiprt_renderer_init(renderer_ptr self, HipRTCreationProperties creation_properties);
+static RendererResult __ww_must_check hiprt_renderer_free_target(renderer_ptr self);
 
 RendererResult hiprt_renderer_create(HipRTCreationProperties creation_properties, Renderer* renderer) {
     assert(renderer);
@@ -58,6 +68,7 @@ RendererResult hiprt_renderer_create(HipRTCreationProperties creation_properties
 
     static const renderer_vtable vtable = {
         .set_target_resolution = hiprt_renderer_set_target_resolution,
+        .set_target_external_memory = hiprt_renderer_set_external_memory,
         .render = hiprt_renderer_render,
         .copy_target_to = hiprt_renderer_copy_target_to,
         .set_scene = hiprt_renderer_set_scene,
@@ -79,6 +90,9 @@ RendererResult hiprt_renderer_init(renderer_ptr self, HipRTCreationProperties cr
         .context = {
             .allocator = creation_properties.allocator,
         },
+        .frames_in_flight = creation_properties.viewport_external_memory_semaphores.frames_in_flight,
+        .wait_semaphores = ww_darray_init(creation_properties.allocator, hipExternalSemaphore_t),
+        .signal_semaphores = ww_darray_init(creation_properties.allocator, hipExternalSemaphore_t),
     };
 
     RendererResult res = HIP_CHECK(hipInit(0));
@@ -123,19 +137,56 @@ RendererResult hiprt_renderer_init(renderer_ptr self, HipRTCreationProperties cr
     }
 
     res = HIP_CHECK(hipModuleGetFunction(&self->kernel_func, self->module, "SceneIntersectionKernel"));
-    return res;
+    if (res.failed) {
+        return res;
+    }
+
+    if (self->frames_in_flight > 0) {
+        if (!ww_darray_ensure_total_capacity_precise(&self->wait_semaphores, self->frames_in_flight)
+            || !ww_darray_ensure_total_capacity_precise(&self->signal_semaphores, self->frames_in_flight)) {
+            return renderer_result(RENDERER_ERROR_OUT_OF_HOST_MEMORY);
+        }
+
+        for (usize i = 0; i < self->frames_in_flight; i++) {
+            hipExternalSemaphore_t semaphore;
+            res = HIP_CHECK(hip_import_viewport_external_semaphore(&semaphore, creation_properties.viewport_external_memory_semaphores.wait_for_signal_external_memory_from_viewport[i]));
+            if (res.failed) {
+                return res;
+            }
+
+            ww_darray_append_assume_capacity(&self->wait_semaphores, semaphore);
+
+            res = HIP_CHECK(hip_import_viewport_external_semaphore(&semaphore, creation_properties.viewport_external_memory_semaphores.signal_external_memory_for_viewport[i]));
+            if (res.failed) {
+                return res;
+            }
+
+            ww_darray_append_assume_capacity(&self->signal_semaphores, semaphore);
+        }
+    }
+
+    return HIP_CHECK(hipStreamCreateWithFlags(&self->stream, hipStreamNonBlocking));
 }
 
 void hiprt_renderer_destroy(renderer_ptr self) {
     assert(self);
-    RendererResult res = {};
+    RendererResult res = hiprt_renderer_free_target(self);
+
+    if (self->stream) {
+        res = HIP_CHECK(hipStreamDestroy(self->stream));
+    }
+
+    ww_darray_foreach_by_ref(&self->wait_semaphores, hipExternalSemaphore_t, s) {
+        res = HIP_CHECK(hipDestroyExternalSemaphore(*s));
+    }
+    ww_darray_foreach_by_ref(&self->signal_semaphores, hipExternalSemaphore_t, s) {
+        res = HIP_CHECK(hipDestroyExternalSemaphore(*s));
+    }
+    ww_darray_deinit(&self->wait_semaphores);
+    ww_darray_deinit(&self->signal_semaphores);
 
     if (self->module) {
         res = HIP_CHECK(hipModuleUnload(self->module));
-    }
-
-    if (self->pixels) {
-        res = HIP_CHECK(hipFree(self->pixels));
     }
 
     if (self->context.hiprt) {
@@ -151,31 +202,61 @@ void hiprt_renderer_destroy(renderer_ptr self) {
 
 RendererResult hiprt_renderer_set_target_resolution(renderer_ptr self, u32 width, u32 height) {
     assert(self);
-    RendererResult res = {};
-    if (self->pixels) {
-        res = HIP_CHECK(hipFree(self->pixels));
-        if (res.failed) {
+
+    RendererResult res = HIP_CHECK(hipStreamSynchronize(self->stream));
+    if (res.failed) {
         return res;
-        } else {
-        self->pixels = NULL;
-        }
+    }
+    
+    res = hiprt_renderer_free_target(self);
+    if (res.failed) {
+        return res;
     }
 
     self->width = width;
     self->height = height;
-    res = HIP_CHECK(hipMalloc(&self->pixels, self->width * self->height * 4 * sizeof(f32)));
+    res = HIP_CHECK(hipMalloc(&self->pixels.ptr, self->width * self->height * 4 * sizeof(f32)));
+    return res;
+}
+
+RendererResult hiprt_renderer_set_external_memory(renderer_ptr self, ViewportExternalHandle external_memory, u32 width, u32 height) {
+    assert(self);
+    RendererResult res = hiprt_renderer_free_target(self);
+    if (res.failed) {
+        return res;
+    }
+
+    usize size = width * height * 4 * sizeof(f32);
+    res = HIP_CHECK(hip_import_viewport_external_memory(&self->pixels.external_memory, external_memory, size));
+    if (res.failed) {
+        return res;
+    }
+
+    hipExternalMemoryBufferDesc buff_desc = { .size = size};
+    res = HIP_CHECK(hipExternalMemoryGetMappedBuffer(&self->pixels.ptr, self->pixels.external_memory, &buff_desc));
+    self->width = width;
+    self->height = height;
     return res;
 }
 
 RendererResult hiprt_renderer_render(renderer_ptr self) {
     assert(self);
-    assert(self->pixels);
+    assert(self->pixels.ptr);
     assert(self->scene);
 
     // scene creation
-    RendererResult result;
-    if (self->scene->rebuild && (result = hiprt_scene_rebuild(self->scene)).failed) {
-        return result;
+    RendererResult res;
+    if (self->scene->rebuild && (res = hiprt_scene_rebuild(self->scene)).failed) {
+        return res;
+    }
+
+    if (self->frames_in_flight > 0) {
+        hipExternalSemaphoreWaitParams wait_params = {};
+        hipExternalSemaphore_t wait_semaphore = ww_darray_get(&self->wait_semaphores, hipExternalSemaphore_t, self->current_frame);
+        res = HIP_CHECK(hipWaitExternalSemaphoresAsync(&wait_semaphore, &wait_params, 1, self->stream));
+        if (res.failed) {
+            return res;
+        }
     }
 
     device::Camera camera = {
@@ -197,10 +278,10 @@ RendererResult hiprt_renderer_render(renderer_ptr self) {
 
     hiprtInt2 resolution = {(i32)self->width, (i32)self->height};
     b8 flip_y = true;
-    void *args[] = {&self->scene->scene, &camera, &self->pixels, &resolution, &flip_y};
+    void *args[] = {&self->scene->scene, &camera, &self->pixels.ptr, &resolution, &flip_y};
     int3 block = { 1024, 1, 1 };
     int3 grid = { ((self->width * self->height) + block.x - 1) / block.x, 1, 1 };
-    return HIP_CHECK(hipModuleLaunchKernel(
+    res = HIP_CHECK(hipModuleLaunchKernel(
         (hipFunction_t)self->kernel_func,
         grid.x,
         grid.y,
@@ -209,16 +290,37 @@ RendererResult hiprt_renderer_render(renderer_ptr self) {
         block.y,
         block.z,
         0,
-        0,
+        self->stream,
         args,
         0
     ));
+    if (res.failed) {
+        return res;
+    }
+
+    if (self->frames_in_flight > 0) {
+        hipExternalSemaphoreSignalParams signal_params = {};
+        hipExternalSemaphore_t signal_semaphore = ww_darray_get(&self->signal_semaphores, hipExternalSemaphore_t, self->current_frame);
+        res = HIP_CHECK(hipSignalExternalSemaphoresAsync(&signal_semaphore, &signal_params, 1, self->stream));
+        if (res.failed) {
+            return res;
+        }
+        self->current_frame = (self->current_frame + 1) % self->frames_in_flight;
+        return res;
+    } else {
+        return HIP_CHECK(hipStreamSynchronize(self->stream));
+    }
 }
 
 RendererResult hiprt_renderer_copy_target_to(renderer_ptr self, void *dst) {
     assert(self);
-    RendererResult res = HIP_CHECK(hipMemcpyDtoH(dst, self->pixels, self->width * self->height * 4 * sizeof(f32)));
-    return res;
+    assert(!self->pixels.external_memory);
+    RendererResult res = HIP_CHECK(hipMemcpyDtoHAsync(dst, self->pixels.ptr, self->width * self->height * 4 * sizeof(f32), self->stream));
+    if (res.failed) {
+        return res;
+    }
+
+    return HIP_CHECK(hipStreamSynchronize(self->stream));
 }
 
 RendererResult hiprt_renderer_set_scene(renderer_ptr self, scene_ptr scene) {
@@ -245,4 +347,21 @@ RendererResult hiprt_renderer_create_object_instance(renderer_ptr self, const tr
 RendererResult hiprt_renderer_create_triangle_mesh(renderer_ptr self, TriangleMeshCreationProperties creation_properties, TriangleMesh* triangle_mesh) {
     assert(self);
     return hiprt_triangle_mesh_create(self->context, creation_properties, triangle_mesh);
+}
+
+RendererResult hiprt_renderer_free_target(renderer_ptr self) {
+    RendererResult res = renderer_result(RENDERER_SUCCESS);
+    if (self->pixels.external_memory) {
+        res = HIP_CHECK(hipDestroyExternalMemory(self->pixels.external_memory));
+    } else if (self->pixels.ptr) {
+        res = HIP_CHECK(hipFree(self->pixels.ptr));
+    }
+
+    if (res.failed) {
+        return res;
+    }
+
+    self->pixels.external_memory = NULL;
+    self->pixels.ptr = NULL;
+    return res;
 }

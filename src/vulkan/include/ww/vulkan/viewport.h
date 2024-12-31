@@ -1,7 +1,6 @@
 #pragma once
 
-#include "ww/defines.h"
-#include <vulkan/vulkan_core.h>
+#include <ww/defines.h>
 #include <ww/vulkan/common.h>
 #include <ww/allocators/allocator.h>
 #include <ww/viewport.h>
@@ -12,6 +11,9 @@ typedef struct VulkanViewportCreationProperties {
     u32 frames_in_flight;
     u32 instance_extension_count;
     const char** instance_extensions;
+    b8 external_memory;
+    b8 external_semaphores;
+    b8 prefer_vsync;
     void* window;
     vulkan_create_surface_fn vulkan_create_surface;
 } VulkanViewportCreationProperties;

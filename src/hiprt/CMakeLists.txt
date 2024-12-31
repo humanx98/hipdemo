@@ -111,7 +111,7 @@ set(SOURCES
     hiprt_object_instance.cpp
     hiprt_scene.cpp
     hiprt_triangle_mesh.cpp
-    renderer.cpp
+    hiprt_renderer.cpp
 )
 
 add_library(hiprt_renderer STATIC ${HEADERS} ${SOURCES})
@@ -125,7 +125,6 @@ target_link_libraries(hiprt_renderer
     ww_core
     ${hiprt_LIB}
     hip::host
-    renderer
     hip_renderer
 )
 target_compile_options(hiprt_renderer PRIVATE "-Wno-deprecated-declarations")
