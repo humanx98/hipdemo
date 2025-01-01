@@ -1,6 +1,5 @@
 #include <ww/hip/common.h>
 #include <ww/log.h>
-#include <ww/exit.h>
 
 b8 hip_failed(const char * file, const i32 line, hipError_t err, const char* expression) {
     if (err != hipSuccess) {
@@ -87,11 +86,6 @@ hipError_t hip_import_viewport_external_semaphore(hipExternalSemaphore_t* semaph
             desc.type = hipExternalSemaphoreHandleTypeOpaqueWin32;
             desc.handle.win32.handle = handle.handle.win32;
             break;
-        case VIEWPORT_EXTERNAL_HANDLE_WIN32_KMT:
-            WW_EXIT_WITH_MSG("Doesn't work");
-            desc.type = hipExternalSemaphoreHandleTypeOpaqueWin32Kmt;
-            desc.handle.win32.handle = handle.handle.win32_kmt;
-            break;
         case VIEWPORT_EXTERNAL_HANDLE_FD:
             desc.type = hipExternalSemaphoreHandleTypeOpaqueFd;
             desc.handle.fd = handle.handle.fd;
@@ -108,10 +102,6 @@ hipError_t hip_import_viewport_external_memory(hipExternalMemory_t* memory, View
         case VIEWPORT_EXTERNAL_HANDLE_WIN32:
             desc.type = hipExternalMemoryHandleTypeOpaqueWin32;
             desc.handle.win32.handle = handle.handle.win32;
-            break;
-        case VIEWPORT_EXTERNAL_HANDLE_WIN32_KMT:
-            desc.type = hipExternalMemoryHandleTypeOpaqueWin32Kmt;
-            desc.handle.win32.handle = handle.handle.win32_kmt;
             break;
         case VIEWPORT_EXTERNAL_HANDLE_FD:
             desc.type = hipExternalMemoryHandleTypeOpaqueFd;

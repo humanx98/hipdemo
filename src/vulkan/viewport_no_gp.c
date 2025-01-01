@@ -863,7 +863,7 @@ static VulkanResult vulkan_viewport_no_gp_create_input_image(viewport_ptr self) 
     VkExternalMemoryBufferCreateInfoKHR external_create_info = {
         .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO_KHR,
 #if defined(_WIN64)
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR,
+        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR,
 #else
         .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR,
 #endif
@@ -909,11 +909,11 @@ static VulkanResult vulkan_viewport_no_gp_create_input_image(viewport_ptr self) 
         VkMemoryGetWin32HandleInfoKHR get_handle_info = {
             .sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR,
             .memory = self->input.staging_buffer_allocation_info.deviceMemory,
-            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR,
+            .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR,
         };
 
-        self->external_memory.handle.type = VIEWPORT_EXTERNAL_HANDLE_WIN32_KMT;
-        res = VULKAN_CHECK(vkGetMemoryWin32HandleKHR(self->device, &get_handle_info, &self->external_memory.handle.handle.win32_kmt));
+        self->external_memory.handle.type = VIEWPORT_EXTERNAL_HANDLE_WIN32;
+        res = VULKAN_CHECK(vkGetMemoryWin32HandleKHR(self->device, &get_handle_info, &self->external_memory.handle.handle.win32));
         if (res.failed) {
             return res;
         }
@@ -945,7 +945,7 @@ VulkanResult vulkan_viewport_no_gp_create_external_memory_pool(viewport_ptr self
     static VkExportMemoryAllocateInfoKHR export_mem_alloc_info = {
         .sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR,
 #if defined(_WIN64)
-        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR,
+        .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR,
 #else
         .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR,
 #endif

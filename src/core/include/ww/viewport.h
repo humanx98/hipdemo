@@ -17,7 +17,6 @@ typedef struct ViewportResult {
 
 typedef enum ViewportExternalHandleType {
     VIEWPORT_EXTERNAL_HANDLE_WIN32 = 0,
-    VIEWPORT_EXTERNAL_HANDLE_WIN32_KMT,
     VIEWPORT_EXTERNAL_HANDLE_FD,
 } ViewportExternalHandleType;
 
@@ -25,7 +24,6 @@ typedef struct ViewportExternalHandle {
     ViewportExternalHandleType type;
     union {
         void* win32;
-        void* win32_kmt;
         i32 fd;
     } handle;
 } ViewportExternalHandle;
