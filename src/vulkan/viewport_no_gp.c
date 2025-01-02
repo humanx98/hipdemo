@@ -1130,7 +1130,7 @@ ViewportResult vulkan_viewport_no_gp_render(viewport_ptr self) {
 
     VkSemaphore signal_semaphores[] = { render_finished_semaphore, signal_external_memory };
     VkSemaphore wait_semaphores[] = { image_available_semaphore, wait_for_external_memory };
-    VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT };
+    VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT };
     VkSubmitInfo submit_info = { 
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         
