@@ -29,9 +29,8 @@ typedef struct ViewportExternalHandle {
 } ViewportExternalHandle;
 
 typedef struct ViewportExternalSemaphores {
-    u32 frames_in_flight;
-    const ViewportExternalHandle* wait_for_signal_external_memory_from_viewport;
-    const ViewportExternalHandle* signal_external_memory_for_viewport;
+    ViewportExternalHandle wait_for_signal_external_memory_from_viewport;
+    ViewportExternalHandle signal_external_memory_for_viewport;
 } ViewportExternalSemaphores;
 
 WW_DEFINE_HANDLE(viewport_ptr);

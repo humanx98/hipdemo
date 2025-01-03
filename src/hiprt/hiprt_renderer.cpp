@@ -28,10 +28,10 @@ typedef struct renderer_ptr_impl {
         hipExternalMemory_t external_memory;
         hipDeviceptr_t ptr;
     } pixels;
-    u32 frames_in_flight;
-    u32 current_frame;
-    WwDArray(hipExternalSemaphore_t) wait_semaphores;
-    WwDArray(hipExternalSemaphore_t) signal_semaphores;
+    struct {
+        hipExternalSemaphore_t wait;
+        hipExternalSemaphore_t signal;
+    } external_semaphores;
     hipModule_t module;
     hipFunction_t kernel_func;
     hipStream_t stream;
@@ -90,9 +90,6 @@ RendererResult hiprt_renderer_init(renderer_ptr self, HipRTCreationProperties cr
         .context = {
             .allocator = creation_properties.allocator,
         },
-        .frames_in_flight = creation_properties.viewport_external_memory_semaphores.frames_in_flight,
-        .wait_semaphores = ww_darray_init(creation_properties.allocator, hipExternalSemaphore_t),
-        .signal_semaphores = ww_darray_init(creation_properties.allocator, hipExternalSemaphore_t),
     };
 
     RendererResult res = HIP_CHECK(hipInit(0));
@@ -141,27 +138,15 @@ RendererResult hiprt_renderer_init(renderer_ptr self, HipRTCreationProperties cr
         return res;
     }
 
-    if (self->frames_in_flight > 0) {
-        if (!ww_darray_ensure_total_capacity_precise(&self->wait_semaphores, self->frames_in_flight)
-            || !ww_darray_ensure_total_capacity_precise(&self->signal_semaphores, self->frames_in_flight)) {
-            return renderer_result(RENDERER_ERROR_OUT_OF_HOST_MEMORY);
+    if (creation_properties.external_semaphores) {
+        res = HIP_CHECK(hip_import_viewport_external_semaphore(&self->external_semaphores.wait, creation_properties.viewport_external_memory_semaphores.wait_for_signal_external_memory_from_viewport));
+        if (res.failed) {
+            return res;
         }
 
-        for (usize i = 0; i < self->frames_in_flight; i++) {
-            hipExternalSemaphore_t semaphore;
-            res = HIP_CHECK(hip_import_viewport_external_semaphore(&semaphore, creation_properties.viewport_external_memory_semaphores.wait_for_signal_external_memory_from_viewport[i]));
-            if (res.failed) {
-                return res;
-            }
-
-            ww_darray_append_assume_capacity(&self->wait_semaphores, semaphore);
-
-            res = HIP_CHECK(hip_import_viewport_external_semaphore(&semaphore, creation_properties.viewport_external_memory_semaphores.signal_external_memory_for_viewport[i]));
-            if (res.failed) {
-                return res;
-            }
-
-            ww_darray_append_assume_capacity(&self->signal_semaphores, semaphore);
+        res = HIP_CHECK(hip_import_viewport_external_semaphore(&self->external_semaphores.signal, creation_properties.viewport_external_memory_semaphores.signal_external_memory_for_viewport));
+        if (res.failed) {
+            return res;
         }
     }
 
@@ -176,14 +161,13 @@ void hiprt_renderer_destroy(renderer_ptr self) {
         res = HIP_CHECK(hipStreamDestroy(self->stream));
     }
 
-    ww_darray_foreach_by_ref(&self->wait_semaphores, hipExternalSemaphore_t, s) {
-        res = HIP_CHECK(hipDestroyExternalSemaphore(*s));
+    if (self->external_semaphores.wait) {
+        res = HIP_CHECK(hipDestroyExternalSemaphore(self->external_semaphores.wait));
     }
-    ww_darray_foreach_by_ref(&self->signal_semaphores, hipExternalSemaphore_t, s) {
-        res = HIP_CHECK(hipDestroyExternalSemaphore(*s));
+
+    if (self->external_semaphores.signal) {
+        res = HIP_CHECK(hipDestroyExternalSemaphore(self->external_semaphores.signal));
     }
-    ww_darray_deinit(&self->wait_semaphores);
-    ww_darray_deinit(&self->signal_semaphores);
 
     if (self->module) {
         res = HIP_CHECK(hipModuleUnload(self->module));
@@ -221,7 +205,13 @@ RendererResult hiprt_renderer_set_target_resolution(renderer_ptr self, u32 width
 
 RendererResult hiprt_renderer_set_external_memory(renderer_ptr self, ViewportExternalHandle external_memory, u32 width, u32 height) {
     assert(self);
-    RendererResult res = hiprt_renderer_free_target(self);
+
+    RendererResult res = HIP_CHECK(hipStreamSynchronize(self->stream));
+    if (res.failed) {
+        return res;
+    }
+
+    res = hiprt_renderer_free_target(self);
     if (res.failed) {
         return res;
     }
@@ -250,10 +240,9 @@ RendererResult hiprt_renderer_render(renderer_ptr self) {
         return res;
     }
 
-    if (self->frames_in_flight > 0) {
+    if (self->external_semaphores.wait) {
         hipExternalSemaphoreWaitParams wait_params = {};
-        hipExternalSemaphore_t wait_semaphore = ww_darray_get(&self->wait_semaphores, hipExternalSemaphore_t, self->current_frame);
-        res = HIP_CHECK(hipWaitExternalSemaphoresAsync(&wait_semaphore, &wait_params, 1, self->stream));
+        res = HIP_CHECK(hipWaitExternalSemaphoresAsync(&self->external_semaphores.wait, &wait_params, 1, self->stream));
         if (res.failed) {
             return res;
         }
@@ -298,14 +287,12 @@ RendererResult hiprt_renderer_render(renderer_ptr self) {
         return res;
     }
 
-    if (self->frames_in_flight > 0) {
+    if (self->external_semaphores.signal) {
         hipExternalSemaphoreSignalParams signal_params = {};
-        hipExternalSemaphore_t signal_semaphore = ww_darray_get(&self->signal_semaphores, hipExternalSemaphore_t, self->current_frame);
-        res = HIP_CHECK(hipSignalExternalSemaphoresAsync(&signal_semaphore, &signal_params, 1, self->stream));
+        res = HIP_CHECK(hipSignalExternalSemaphoresAsync(&self->external_semaphores.signal, &signal_params, 1, self->stream));
         if (res.failed) {
             return res;
         }
-        self->current_frame = (self->current_frame + 1) % self->frames_in_flight;
         return res;
     } else {
         return HIP_CHECK(hipStreamSynchronize(self->stream));

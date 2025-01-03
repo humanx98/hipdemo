@@ -163,6 +163,7 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
         .allocator = creation_properties.allocator,
         .device_index = creation_properties.device_index,
 #if USE_SEMAPHORES_INTEROP
+        .external_semaphores = true,
         .viewport_external_memory_semaphores = viewport_get_external_semaphores(self->viewport),
 #endif
     };

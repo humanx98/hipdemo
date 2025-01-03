@@ -62,11 +62,9 @@ typedef struct viewport_ptr_impl {
         VkSwapchainKHR swapchain;
         b8 handle_out_of_date;
         WwDArray(VkImage) images;
-        WwDArray(b8) has_undefined_layout;
     } swapchain;
     struct {
         VkImage image;
-        b8 has_undefined_layout;
         VkExtent3D extent;
         VmaAllocation allocation;
         VkImageView view;
@@ -81,10 +79,10 @@ typedef struct viewport_ptr_impl {
     } external_memory;
     struct {
         b8 enabled;
-        WwDArray(VkSemaphore) wait;
-        WwDArray(ViewportExternalHandle) wait_handles;
-        WwDArray(VkSemaphore) signal;
-        WwDArray(ViewportExternalHandle) signal_handles;
+        VkSemaphore wait;
+        ViewportExternalHandle wait_handle;
+        VkSemaphore signal;
+        ViewportExternalHandle signal_handle;
     } external_semaphores;
 } viewport_ptr_impl;
 
@@ -113,7 +111,7 @@ static void vulkan_viewport_no_gp_cleanup_swapchain_and_input_image(viewport_ptr
 static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data); 
 static void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, TransitionImageLayoutInfo info);
 static ViewportResult __ww_must_check to_viewport_result(VulkanResult res);
-static VulkanResult __ww_must_check create_external_semaphore(VkDevice device, WwDArray(VkSemaphore)* semaphores, WwDArray(ViewportExternalHandle)* handles);
+static VulkanResult __ww_must_check create_external_semaphore(VkDevice device, VkSemaphore* semaphore, ViewportExternalHandle* handle);
 
 VulkanResult vulkan_viewport_no_gp_create(VulkanViewportCreationProperties creation_properties, Viewport* viewport) {
     assert(viewport);
@@ -152,7 +150,6 @@ void vulkan_viewport_no_gp_destroy(viewport_ptr self) {
     assert(self);
 
     vulkan_viewport_no_gp_cleanup_swapchain_and_input_image(self);
-    ww_darray_deinit(&self->swapchain.has_undefined_layout);
     ww_darray_deinit(&self->swapchain.images);
 
     if (self->external_memory.pool) {
@@ -163,10 +160,14 @@ void vulkan_viewport_no_gp_destroy(viewport_ptr self) {
         vmaDestroyAllocator(self->vma_allocator);
     }
 
-    ww_darray_foreach_by_ref(&self->external_semaphores.wait, VkSemaphore, s)
-        vkDestroySemaphore(self->device, *s, NULL);
-    ww_darray_foreach_by_ref(&self->external_semaphores.signal, VkSemaphore, s)
-        vkDestroySemaphore(self->device, *s, NULL);
+    if (self->external_semaphores.wait) {
+        vkDestroySemaphore(self->device, self->external_semaphores.wait, NULL);
+    }
+
+    if (self->external_semaphores.signal) {
+        vkDestroySemaphore(self->device, self->external_semaphores.signal, NULL);
+    }
+
     ww_darray_foreach_by_ref(&self->image_available_semaphores, VkSemaphore, s)
         vkDestroySemaphore(self->device, *s, NULL);
     ww_darray_foreach_by_ref(&self->render_finished_semaphores, VkSemaphore, s)
@@ -174,10 +175,6 @@ void vulkan_viewport_no_gp_destroy(viewport_ptr self) {
     ww_darray_foreach_by_ref(&self->in_flight_fences, VkFence, f) 
         vkDestroyFence(self->device, *f, NULL);
 
-    ww_darray_deinit(&self->external_semaphores.signal_handles);
-    ww_darray_deinit(&self->external_semaphores.wait_handles);
-    ww_darray_deinit(&self->external_semaphores.signal);
-    ww_darray_deinit(&self->external_semaphores.wait);
     ww_darray_deinit(&self->image_available_semaphores);
     ww_darray_deinit(&self->render_finished_semaphores);
     ww_darray_deinit(&self->in_flight_fences); 
@@ -230,9 +227,8 @@ ViewportExternalSemaphores vulkan_viewport_no_gp_get_external_semaphores(viewpor
     assert(self);
     assert(self->external_semaphores.enabled);
     return (ViewportExternalSemaphores){
-        .frames_in_flight = self->frames_in_flight,
-        .signal_external_memory_for_viewport = ww_darray_get_ref(&self->external_semaphores.wait_handles, ViewportExternalHandle, 0),
-        .wait_for_signal_external_memory_from_viewport = ww_darray_get_ref(&self->external_semaphores.signal_handles, ViewportExternalHandle, 0),
+        .signal_external_memory_for_viewport = self->external_semaphores.wait_handle,
+        .wait_for_signal_external_memory_from_viewport = self->external_semaphores.signal_handle,
     };
 }
 
@@ -245,9 +241,9 @@ ViewportResult vulkan_viewport_no_gp_set_resolution(viewport_ptr self, u32 width
         VkSubmitInfo submit_info = { 
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .signalSemaphoreCount = 1,
-            .pSignalSemaphores = ww_darray_get_ref(&self->external_semaphores.signal, VkSemaphore, (self->current_frame + 1) % self->frames_in_flight),
+            .pSignalSemaphores = &self->external_semaphores.signal,
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = ww_darray_get_ref(&self->external_semaphores.wait, VkSemaphore, self->current_frame),
+            .pWaitSemaphores = &self->external_semaphores.wait,
             .pWaitDstStageMask = &wait_stage,
         };
 
@@ -278,6 +274,60 @@ ViewportResult vulkan_viewport_no_gp_set_resolution(viewport_ptr self, u32 width
     }
 
     res = vulkan_viewport_no_gp_create_input_image(self);
+    if (res.failed) {
+        return to_viewport_result(res);
+    }
+    VkCommandBufferBeginInfo begin_info = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    VkCommandBuffer command_buffer = ww_darray_get(&self->command_buffers, VkCommandBuffer, 0);
+    res = VULKAN_CHECK(vkResetCommandBuffer(command_buffer, 0));
+    if (res.failed) {
+        return to_viewport_result(res);
+    }
+
+    res = VULKAN_CHECK(vkBeginCommandBuffer(command_buffer, &begin_info));
+    if (res.failed) {
+        return to_viewport_result(res);
+    }
+
+    TransitionImageLayoutInfo transition_image_layout_info = {
+        .from_pipeline_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        .to_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        // .to_access = VK_ACCESS_TRANSFER_READ_BIT,
+        .to_pipeline_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+    };
+    transition_image_layout(command_buffer, self->input.image, transition_image_layout_info);
+
+    ww_darray_foreach_by_ref(&self->swapchain.images, VkImage, present_image) {
+        transition_image_layout_info = (TransitionImageLayoutInfo) {
+            .from_pipeline_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            .to_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            // .to_access = VK_ACCESS_MEMORY_READ_BIT,
+            .to_pipeline_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+        };
+        transition_image_layout(command_buffer, *present_image, transition_image_layout_info);
+    }
+
+    res = VULKAN_CHECK(vkEndCommandBuffer(command_buffer));
+    if (res.failed) {
+        return to_viewport_result(res);
+    }
+
+    VkSubmitInfo submit_info = { 
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &command_buffer,
+    };
+
+    res = VULKAN_CHECK(vkQueueSubmit(self->present_queue, 1, &submit_info, NULL));
+    if (res.failed) {
+        return to_viewport_result(res);
+    }
+
+    res = VULKAN_CHECK(vkQueueWaitIdle(self->present_queue));
+    if (res.failed) {
+        return to_viewport_result(res);
+    }
+
     return to_viewport_result(res);
 }
 
@@ -300,16 +350,11 @@ VulkanResult vulkan_viewport_no_gp_init_vulkan(viewport_ptr self, VulkanViewport
         .image_available_semaphores = ww_darray_init(creation_properties.allocator, VkSemaphore),
         .render_finished_semaphores = ww_darray_init(creation_properties.allocator, VkSemaphore),
         .in_flight_fences = ww_darray_init(creation_properties.allocator, VkFence),
-        .swapchain.has_undefined_layout = ww_darray_init(creation_properties.allocator, b8),
         .external_memory = {
             .enabled = creation_properties.external_memory,
         },
         .external_semaphores = {
             .enabled = creation_properties.external_semaphores,
-            .wait= ww_darray_init(creation_properties.allocator, VkSemaphore),
-            .wait_handles = ww_darray_init(creation_properties.allocator, ViewportExternalHandle),
-            .signal= ww_darray_init(creation_properties.allocator, VkSemaphore),
-            .signal_handles = ww_darray_init(creation_properties.allocator, ViewportExternalHandle),
         },
     };
 
@@ -709,38 +754,30 @@ VulkanResult vulkan_viewport_no_gp_create_sync_objects(viewport_ptr self) {
     }
 
     if (self->external_semaphores.enabled) {
-        if (!ww_darray_ensure_total_capacity_precise(&self->external_semaphores.signal_handles, self->frames_in_flight)
-            || !ww_darray_ensure_total_capacity_precise(&self->external_semaphores.wait_handles, self->frames_in_flight)
-            || !ww_darray_ensure_total_capacity_precise(&self->external_semaphores.signal, self->frames_in_flight)
-            || !ww_darray_ensure_total_capacity_precise(&self->external_semaphores.wait, self->frames_in_flight)) {
-            return VULKAN_CHECK(VK_ERROR_OUT_OF_HOST_MEMORY);
+        res = create_external_semaphore(self->device, &self->external_semaphores.signal, &self->external_semaphores.signal_handle);
+        if (res.failed) {
+            return res;
+        } else {
+            VkSubmitInfo submit_info = { 
+                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                .signalSemaphoreCount = 1,
+                .pSignalSemaphores = &self->external_semaphores.signal,
+            };
+
+            res = VULKAN_CHECK(vkQueueSubmit(self->present_queue, 1, &submit_info, NULL));
+            if (res.failed) {
+                return res;
+            }
+
+            res = VULKAN_CHECK(vkQueueWaitIdle(self->present_queue));
+            if (res.failed) {
+                return res;
+            }
         }
-        for (usize i = 0; i < self->frames_in_flight; i++) {
-            res = create_external_semaphore(self->device, &self->external_semaphores.signal, &self->external_semaphores.signal_handles);
-            if (res.failed) {
-                return res;
-            } else if (i == 0) {
-                VkSubmitInfo submit_info = { 
-                    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                    .signalSemaphoreCount = 1,
-                    .pSignalSemaphores = ww_darray_get_ref(&self->external_semaphores.signal, VkSemaphore, 0),
-                };
 
-                res = VULKAN_CHECK(vkQueueSubmit(self->present_queue, 1, &submit_info, NULL));
-                if (res.failed) {
-                    return res;
-                }
-
-                res = VULKAN_CHECK(vkQueueWaitIdle(self->present_queue));
-                if (res.failed) {
-                    return res;
-                }
-            }
-
-            res = create_external_semaphore(self->device, &self->external_semaphores.wait, &self->external_semaphores.wait_handles);
-            if (res.failed) {
-                return res;
-            }
+        res = create_external_semaphore(self->device, &self->external_semaphores.wait, &self->external_semaphores.wait_handle);
+        if (res.failed) {
+            return res;
         }
     }
 
@@ -788,16 +825,6 @@ VulkanResult vulkan_viewport_no_gp_create_swapchain(viewport_ptr self, u32 width
         return res;
     }
 
-    if (!ww_darray_ensure_total_capacity_precise(&self->swapchain.has_undefined_layout, ww_darray_len(&self->swapchain.images))) {
-        res = VULKAN_CHECK(VK_ERROR_OUT_OF_HOST_MEMORY);
-        return res;
-    }
-
-    ww_darray_resize_assume_capacity(&self->swapchain.has_undefined_layout, ww_darray_len(&self->swapchain.images));
-    ww_darray_foreach_by_ref(&self->swapchain.has_undefined_layout, b8, item_ref) {
-        *item_ref = true;
-    }
-
     return res;
 }
 
@@ -838,7 +865,6 @@ static VulkanResult vulkan_viewport_no_gp_create_input_image(viewport_ptr self) 
         return res;
     } else {
         self->input.extent = img_create_info.extent;
-        self->input.has_undefined_layout = true;
     }
     VkImageViewCreateInfo view_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -972,12 +998,6 @@ VulkanResult vulkan_viewport_no_gp_record_command_buffer(viewport_ptr self, VkCo
         .to_access = VK_ACCESS_TRANSFER_WRITE_BIT,
         .to_pipeline_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
     };
-    if (self->input.has_undefined_layout) {
-        transition_image_layout_info.from_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-        transition_image_layout_info.from_access = VK_ACCESS_NONE;
-        transition_image_layout_info.from_pipeline_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        self->input.has_undefined_layout = false;
-    }
     transition_image_layout(command_buffer, self->input.image, transition_image_layout_info);
 
     VkBufferImageCopy region = {
@@ -1002,16 +1022,12 @@ VulkanResult vulkan_viewport_no_gp_record_command_buffer(viewport_ptr self, VkCo
     VkImage present_image = ww_darray_get(&self->swapchain.images, VkImage, image_index);
     transition_image_layout_info = (TransitionImageLayoutInfo) {
         .from_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .from_access = VK_ACCESS_MEMORY_READ_BIT,
         .from_pipeline_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
         .to_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         .to_access = VK_ACCESS_TRANSFER_WRITE_BIT,
         .to_pipeline_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
     };
-    b8* present_image_has_undefined_layout = ww_darray_get_ref(&self->swapchain.has_undefined_layout, b8, image_index);
-    if (*present_image_has_undefined_layout) {
-        transition_image_layout_info.from_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-        *present_image_has_undefined_layout = false;
-    }
     transition_image_layout(command_buffer, present_image, transition_image_layout_info);
 
     if (self->use_cmd_blit) {
@@ -1072,7 +1088,7 @@ VulkanResult vulkan_viewport_no_gp_record_command_buffer(viewport_ptr self, VkCo
         .from_access = VK_ACCESS_TRANSFER_WRITE_BIT,
         .from_pipeline_stage = VK_PIPELINE_STAGE_TRANSFER_BIT,
         .to_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        .to_access = VK_ACCESS_NONE,
+        .to_access = VK_ACCESS_MEMORY_READ_BIT,
         .to_pipeline_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
     };
     transition_image_layout(command_buffer, present_image, transition_image_layout_info);
@@ -1122,15 +1138,15 @@ ViewportResult vulkan_viewport_no_gp_render(viewport_ptr self) {
     u32 wait_count = 1;
     u32 signal_count = 1;
     if (self->external_semaphores.enabled) {
-        wait_for_external_memory = ww_darray_get(&self->external_semaphores.wait, VkSemaphore, self->current_frame);
-        signal_external_memory = ww_darray_get(&self->external_semaphores.signal, VkSemaphore, (self->current_frame + 1) % self->frames_in_flight);
+        wait_for_external_memory = self->external_semaphores.wait;
+        signal_external_memory = self->external_semaphores.signal;
         wait_count = 2;
         signal_count = 2;
     }
 
     VkSemaphore signal_semaphores[] = { render_finished_semaphore, signal_external_memory };
     VkSemaphore wait_semaphores[] = { image_available_semaphore, wait_for_external_memory };
-    VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT };
+    VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT };
     VkSubmitInfo submit_info = { 
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         
@@ -1180,7 +1196,6 @@ void vulkan_viewport_no_gp_cleanup_swapchain_and_input_image(viewport_ptr self) 
         self->input.image = VK_NULL_HANDLE;
     }
 
-    ww_darray_resize_assume_capacity(&self->swapchain.has_undefined_layout, 0);
     ww_darray_resize_assume_capacity(&self->swapchain.images, 0);
 
     if (self->swapchain.swapchain != VK_NULL_HANDLE) {
@@ -1275,7 +1290,7 @@ ViewportResult to_viewport_result(VulkanResult vulkan_result) {
     return res;
 }
 
-VulkanResult create_external_semaphore(VkDevice device, WwDArray(VkSemaphore)* semaphores, WwDArray(ViewportExternalHandle)* handles) {
+VulkanResult create_external_semaphore(VkDevice device, VkSemaphore* semaphore, ViewportExternalHandle* handle) {
     VkSemaphoreCreateInfo semaphore_create_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
     VkExportSemaphoreCreateInfoKHR export_create_info = {
         .sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO_KHR,
@@ -1283,35 +1298,32 @@ VulkanResult create_external_semaphore(VkDevice device, WwDArray(VkSemaphore)* s
     };
     semaphore_create_info.pNext = &export_create_info;
 
-    VkSemaphore semaphore;
-    VulkanResult res = VULKAN_CHECK(vkCreateSemaphore(device, &semaphore_create_info, NULL, &semaphore));
+    VulkanResult res = VULKAN_CHECK(vkCreateSemaphore(device, &semaphore_create_info, NULL, semaphore));
     if (res.failed) {
         return res;
     }
 
-    ww_darray_append_assume_capacity(semaphores, semaphore);
 
 #if defined(_WIN64)
-    ViewportExternalHandle handle = { .type = VIEWPORT_EXTERNAL_HANDLE_WIN32 };
+    *handle = (ViewportExternalHandle){ .type = VIEWPORT_EXTERNAL_HANDLE_WIN32 };
     VkSemaphoreGetWin32HandleInfoKHR get_handle_info = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
-        .semaphore = semaphore,
+        .semaphore = *semaphore,
         .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR,
     };
-    res = VULKAN_CHECK(vkGetSemaphoreWin32HandleKHR(device, &get_handle_info, &handle.handle.win32));
+    res = VULKAN_CHECK(vkGetSemaphoreWin32HandleKHR(device, &get_handle_info, &handle->handle.win32));
 #else
-    ViewportExternalHandle handle = { .type = VIEWPORT_EXTERNAL_HANDLE_FD };
-    VkSemaphoreGetWin32HandleInfoKHR get_handle_info = {
-        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
-        .semaphore = semaphore,
+    *handle = (ViewportExternalHandle){ .type = VIEWPORT_EXTERNAL_HANDLE_FD };
+    VkSemaphoreGetFdInfoKHR get_handle_info = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR,
+        .semaphore = *semaphore,
         .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT_KHR,
     };
-    res = VULKAN_CHECK(PFN_vkGetSemaphoreFdKHR(device, &get_handle_info, &handle.handle.fd));
+    res = VULKAN_CHECK(vkGetSemaphoreFdKHR(device, &get_handle_info, &handle->handle.fd));
 #endif
     if (res.failed) {
         return res;
     }
 
-    ww_darray_append_assume_capacity(handles, handle);
     return res;
 }
