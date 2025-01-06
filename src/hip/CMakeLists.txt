@@ -60,7 +60,7 @@ set(HEADERS
 
 set(SOURCES
     common.c
-    renderer.c
+    hip_renderer.c
 )
 
 add_library(hip_renderer STATIC ${HEADERS} ${SOURCES})
@@ -72,6 +72,5 @@ target_include_directories(hip_renderer
 target_link_libraries(hip_renderer
     ww_core
     hip::host
-    renderer
 )
 set_target_properties(hip_renderer PROPERTIES HIP_BIN_DIR "${hip_renderer_hip_bin_dir}")

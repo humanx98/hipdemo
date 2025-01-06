@@ -352,7 +352,7 @@ static VulkanResult vulkan_create_info_instance(VkInstance* instance) {
         .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
         .pEngineName = "print device engine name",
         .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = VK_API_VERSION_1_0,
+        .apiVersion = VK_API_VERSION_1_2,
     };
 
     const char* extensions[] = {

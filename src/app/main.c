@@ -51,8 +51,8 @@ i32 main() {
     App* app;
     AppCreationProperties creation_properties = {
         .allocator = allocator,
-        .width = 1000,
-        .height = 600,
+        .width = 1200,
+        .height = 800,
         .device_index = 0,
     };
     if (app_create(creation_properties, &app).failed) {

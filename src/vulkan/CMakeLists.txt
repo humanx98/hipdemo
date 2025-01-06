@@ -24,6 +24,8 @@ set(SOURCES
     viewport_no_gp.c
     viewport.c
     vma.cpp
+    vulkan_ext_funcs_win32.c
+    vulkan_ext_funcs_linux.c
 )
 
 add_library(vulkan STATIC ${HEADERS} ${SOURCES})
@@ -32,7 +34,6 @@ target_link_libraries(vulkan
     Vulkan::Vulkan
     GPUOpen::VulkanMemoryAllocator
     ww_core
-    viewport
 )
 set_target_properties(vulkan PROPERTIES SPV_BIN_DIR "${spv_bin_dir}")
 

@@ -2,6 +2,7 @@
 
 #include <ww/defines.h>
 #include <ww/prim_types.h>
+#include <ww/viewport.h>
 #include <ww/renderer/result.h>
 #include <ww/renderer/scene.h>
 #include <ww/renderer/triangle_mesh.h>
@@ -9,6 +10,7 @@
 WW_DEFINE_HANDLE(renderer_ptr);
 
 typedef RendererResult __ww_must_check (*renderer_set_target_resolution_fn)(renderer_ptr ptr, u32 width, u32 height);
+typedef RendererResult __ww_must_check (*renderer_set_target_external_memory_fn)(renderer_ptr ptr, ViewportExternalHandle external_memory, u32 width, u32 height);
 typedef RendererResult __ww_must_check (*renderer_render_fn)(renderer_ptr ptr);
 typedef RendererResult __ww_must_check (*renderer_copy_target_to_fn)(renderer_ptr ptr, void* dst);
 typedef RendererResult __ww_must_check (*renderer_set_scene_fn)(renderer_ptr ptr, scene_ptr scene);
@@ -20,6 +22,7 @@ typedef void (*renderer_destroy_fn)(renderer_ptr ptr);
 
 typedef struct renderer_vtable {
     renderer_set_target_resolution_fn set_target_resolution;
+    renderer_set_target_external_memory_fn set_target_external_memory;
     renderer_render_fn render;
     renderer_copy_target_to_fn copy_target_to;
     renderer_set_scene_fn set_scene;
@@ -36,6 +39,7 @@ typedef struct Renderer {
 } Renderer;
 
 RendererResult __ww_must_check renderer_set_target_resolution(Renderer self, u32 width, u32 height);
+RendererResult __ww_must_check renderer_set_target_external_memory(Renderer self, ViewportExternalHandle external_memory, u32 width, u32 height);
 RendererResult __ww_must_check renderer_render(Renderer self);
 RendererResult __ww_must_check renderer_copy_target_to(Renderer self, void* dst);
 RendererResult __ww_must_check renderer_set_scene(Renderer self, scene_ptr scene);

@@ -1,7 +1,8 @@
 #include "app.h"
 #include <ww/collections/darray.h>
 #include <ww/math.h>
-#include <ww/renderer.h>
+#include <ww/renderer/renderer.h>
+#include <ww/viewport.h>
 #include <stdlib.h>
 #include <time.h>
 #include <vulkan/vulkan_core.h>
@@ -16,7 +17,11 @@
 #include <assimp/postprocess.h>
 
 #define USE_HIPRT_RENDERER true
-#define USE_VK_VIEWPORT_NO_GP true
+#define USE_VK_VIEWPORT_NO_GP false
+#define USE_MEMORY_INTEROP true
+#define USE_SEMAPHORES_INTEROP true
+#define PREFER_VSYNC false
+#define FRAMES_IN_FLIGHT 2
 
 #if USE_HIPRT_RENDERER
 #include <ww/hiprt/renderer.h>
@@ -141,9 +146,12 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
     VulkanViewportCreationProperties vulkan_viewport_creation_properties = {
         .allocator = creation_properties.allocator,
         .device_index = vulkan_device_id,
-        .frames_in_flight = 2,
+        .frames_in_flight = FRAMES_IN_FLIGHT,
         .instance_extension_count = glfw_extension_count,
         .instance_extensions = glfw_extensions,
+        .external_memory = USE_MEMORY_INTEROP,
+        .external_semaphores = USE_SEMAPHORES_INTEROP,
+        .prefer_vsync = PREFER_VSYNC,
         .window = self->window,
         .vulkan_create_surface = vulkan_create_surface,
     };
@@ -154,12 +162,16 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
     HipCreationProperties renderer_creation_properties = {
         .allocator = creation_properties.allocator,
         .device_index = creation_properties.device_index,
+#if USE_SEMAPHORES_INTEROP
+        .external_semaphores = true,
+        .viewport_external_memory_semaphores = viewport_get_external_semaphores(self->viewport),
+#endif
     };
     if (!app_init_renderer(self, renderer_creation_properties)) {
         goto failed;
     }
 
-    if (!app_load_cornellplot(self)) {
+    if (!app_load_lucy(self)) {
         goto failed;
     }
 
@@ -221,6 +233,7 @@ AppResult app_run(App* self) {
     while (!glfwWindowShouldClose(self->window)) {
         delta_time = end_frame - begin_frame;
         frames += render_iterations;
+        begin_frame = clock();
 
         fps_time += delta_time;
         f64 fps_time_in_seconds = (fps_time / (f64)CLOCKS_PER_SEC);
@@ -235,22 +248,26 @@ AppResult app_run(App* self) {
         }
 
         attach_detach_time += delta_time;
+        b8 scene_change = false;
         if ((attach_detach_time / (f64)CLOCKS_PER_SEC) > 0.15) {
             attach_detach_time = 0;
-            if (self->test_attaching_objects
-                && self->attached_objects_count < ww_darray_len(&self->object_instances)
-                && scene_attach_object_instance(self->scene, ww_darray_get(&self->object_instances, object_instance_ptr, self->attached_objects_count++)).failed) {
-                goto failed;
+            if (self->test_attaching_objects && self->attached_objects_count < ww_darray_len(&self->object_instances)) {
+                scene_change = true;
+                if (scene_attach_object_instance(self->scene, ww_darray_get(&self->object_instances, object_instance_ptr, self->attached_objects_count++)).failed) {
+                    goto failed;
+                }
             }
 
-            if (self->test_detaching_objects
-                && self->attached_objects_count > 1
-                && scene_detach_object_instance(self->scene, ww_darray_get(&self->object_instances, object_instance_ptr, --self->attached_objects_count)).failed) {
-                goto failed;
+            if (self->test_detaching_objects && self->attached_objects_count > 1) {
+                scene_change = true;
+                if (scene_detach_object_instance(self->scene, ww_darray_get(&self->object_instances, object_instance_ptr, --self->attached_objects_count)).failed) {
+                    goto failed;
+                }
             }
         }
 
         if (self->test_upscale || self->test_downscale) {
+            scene_change = true;
             if (self->test_upscale) {
                 self->scale += delta_time / (f32)CLOCKS_PER_SEC;
             } else if (self->test_downscale) {
@@ -264,7 +281,10 @@ AppResult app_run(App* self) {
             }
         }
 
-        begin_frame = clock();
+        if (scene_change && viewport_wait_idle(self->viewport).failed) {
+            goto failed;
+        }
+
         {
             glfwPollEvents();
             if (viewport_result.code == VIEWPORT_ERROR_OUT_OF_DATE || viewport_result.code == VIEWPORT_SUBOPTIMAL || self->window_resized) {
@@ -284,10 +304,17 @@ AppResult app_run(App* self) {
                 goto failed;
             }
 
+#if !USE_MEMORY_INTEROP
             if (renderer_copy_target_to(self->renderer, viewport_get_mapped_input(self->viewport)).failed) {
                 goto failed;
             }
+#endif
 
+#if !USE_SEMAPHORES_INTEROP
+            if (viewport_wait_idle(self->viewport).failed) {
+                goto failed;
+            }
+#endif
             viewport_result = viewport_render(self->viewport);
         }
         end_frame = clock();
@@ -471,10 +498,18 @@ b8 app_handle_resize(App* self) {
     }
 
     viewport_get_resolution(self->viewport, &width, &height);
+#if USE_MEMORY_INTEROP
+    WW_LOG_DEBUG("[App] renderer resize with interop (%d, %d)\n", width, height);
+    ViewportExternalHandle external_memory = viewport_get_external_memory(self->viewport);
+    if (renderer_set_target_external_memory(self->renderer, external_memory, width, height).failed) {
+        return false;
+    }
+#else
     WW_LOG_DEBUG("[App] renderer resize (%d, %d)\n", width, height);
     if (renderer_set_target_resolution(self->renderer, width, height).failed) {
         return false;
     }
+#endif
 
     if (camera_set_aspect_ratio(self->camera, (f32)width / height).failed) {
         return false;

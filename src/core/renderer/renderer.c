@@ -1,10 +1,11 @@
-#include <ww/renderer.h>
+#include <ww/renderer/renderer.h>
 #include <assert.h>
 
-static void assert_renderer(Renderer renderer) {
+static inline void assert_renderer(Renderer renderer) {
     assert(renderer.ptr);
     assert(renderer.vtable);
     assert(renderer.vtable->set_target_resolution);
+    assert(renderer.vtable->set_target_external_memory);
     assert(renderer.vtable->render);
     assert(renderer.vtable->copy_target_to);
     assert(renderer.vtable->set_scene);
@@ -18,6 +19,11 @@ static void assert_renderer(Renderer renderer) {
 RendererResult renderer_set_target_resolution(Renderer self, u32 width, u32 height) {
     assert_renderer(self);
     return self.vtable->set_target_resolution(self.ptr, width, height);
+}
+
+RendererResult __ww_must_check renderer_set_target_external_memory(Renderer self, ViewportExternalHandle external_memory, u32 width, u32 height) {
+    assert_renderer(self);
+    return self.vtable->set_target_external_memory(self.ptr, external_memory, width, height);
 }
 
 RendererResult renderer_render(Renderer self) {

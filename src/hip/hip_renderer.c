@@ -4,7 +4,7 @@
 #include <ww/file.h>
 #include <ww/exit.h>
 #include <ww/math.h>
-#include <ww/renderer.h>
+#include <ww/renderer/renderer.h>
 #include <ww/hip/common.h>
 
 typedef struct renderer_ptr_impl {

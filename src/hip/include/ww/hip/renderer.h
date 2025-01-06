@@ -2,7 +2,7 @@
 
 #include <ww/defines.h>
 #include <ww/allocators/allocator.h>
-#include <ww/renderer.h>
+#include <ww/renderer/renderer.h>
 
 typedef struct HipCreationProperties {
     WwAllocator allocator;
