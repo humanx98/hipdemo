@@ -54,6 +54,16 @@ i32 main() {
         .width = 1200,
         .height = 800,
         .device_index = 0,
+        .renderer = APP_RENDERER_HIPRT,
+        // .renderer = APP_RENDERER_HIP,
+        // .viewport = APP_VIEWPORT_VK,
+        .viewport = APP_VIEWPORT_VK_NO_GRAPHICS_PIPELINE,
+        .viewport_frames_in_flight = 2, 
+        .renderer_viewport_memory_interop = true,
+        // on windows hip vk semphore interop is unstable
+        // I guess it's a hip but not sure
+        .renderer_viewport_semaphores_interop = false,
+        .prefer_vsync = false,
     };
     if (app_create(creation_properties, &app).failed) {
         retvalue = -1;

@@ -3,6 +3,7 @@
 #include <ww/math.h>
 #include <ww/renderer/renderer.h>
 #include <ww/viewport.h>
+#include <ww/exit.h>
 #include <stdlib.h>
 #include <time.h>
 #include <vulkan/vulkan_core.h>
@@ -16,29 +17,15 @@
 #include <assimp/mesh.h>
 #include <assimp/postprocess.h>
 
-#define USE_HIPRT_RENDERER true
-#define USE_VK_VIEWPORT_NO_GP false
-#define USE_MEMORY_INTEROP true
-#define USE_SEMAPHORES_INTEROP true
-#define PREFER_VSYNC false
-#define FRAMES_IN_FLIGHT 2
-
-#if USE_HIPRT_RENDERER
 #include <ww/hiprt/renderer.h>
-typedef HipRTCreationProperties HipCreationProperties;
-#define hip_renderer_create hiprt_renderer_create
-#else
 #include <ww/hip/renderer.h>
-#endif
-
 #include <ww/vulkan/viewport.h>
-#if USE_VK_VIEWPORT_NO_GP
-#define vulkan_viewport_create vulkan_viewport_no_gp_create
-#endif
 
 typedef struct App {
     WwAllocator allocator;
     b8 window_resized;
+    b8 memory_interop;
+    b8 semaphores_interop;
     GLFWwindow* window;
     Viewport viewport;
     Renderer renderer;
@@ -64,8 +51,6 @@ static void framebuffer_resize_callback(GLFWwindow* window, int width, int heigh
 static void glfw_error_callback(i32 error_code, const char* descriptopn);
 static VkResult __ww_must_check vulkan_create_surface(VkInstance instance, void* window, VkSurfaceKHR* surface);
 static void app_init_window(App* self, u32 width, u32 height);
-static b8 __ww_must_check app_init_viewport(App* self, VulkanViewportCreationProperties creation_properties);
-static b8 __ww_must_check app_init_renderer(App* self, HipCreationProperties creation_properties);
 static b8 __ww_must_check app_load_scene(App* self, const char* file);
 static b8 __ww_must_check app_load_cornellplot(App* self);
 static b8 __ww_must_check app_load_lucy(App* self);
@@ -134,6 +119,8 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
     *self = (App){
         .allocator = creation_properties.allocator,
         .window_resized = true,
+        .memory_interop = creation_properties.renderer_viewport_memory_interop,
+        .semaphores_interop = creation_properties.renderer_viewport_semaphores_interop,
         .triangle_meshes = ww_darray_init(creation_properties.allocator, TriangleMesh),
         .object_instances = ww_darray_init(creation_properties.allocator, ObjectInstance),
         .scale = 1.0f,
@@ -146,28 +133,68 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
     VulkanViewportCreationProperties vulkan_viewport_creation_properties = {
         .allocator = creation_properties.allocator,
         .device_index = vulkan_device_id,
-        .frames_in_flight = FRAMES_IN_FLIGHT,
+        .frames_in_flight = creation_properties.viewport_frames_in_flight,
         .instance_extension_count = glfw_extension_count,
         .instance_extensions = glfw_extensions,
-        .external_memory = USE_MEMORY_INTEROP,
-        .external_semaphores = USE_SEMAPHORES_INTEROP,
-        .prefer_vsync = PREFER_VSYNC,
+        .external_memory = creation_properties.renderer_viewport_memory_interop,
+        .external_semaphores = creation_properties.renderer_viewport_semaphores_interop,
+        .prefer_vsync = creation_properties.prefer_vsync,
         .window = self->window,
         .vulkan_create_surface = vulkan_create_surface,
     };
-    if (!app_init_viewport(self, vulkan_viewport_creation_properties)) {
+    switch (creation_properties.viewport) {
+        case APP_VIEWPORT_VK: {
+            if (vulkan_viewport_create(vulkan_viewport_creation_properties, &self->viewport).failed) {
+                goto failed;
+            } 
+            break;
+        }
+        case APP_VIEWPORT_VK_NO_GRAPHICS_PIPELINE: {
+            if (vulkan_viewport_no_gp_create(vulkan_viewport_creation_properties, &self->viewport).failed) {
+                goto failed;
+            } 
+            break;
+        }
+    }
+
+    switch (creation_properties.renderer) {
+        case APP_RENDERER_HIPRT: {
+            HipRTCreationProperties renderer_creation_properties = {
+                .allocator = creation_properties.allocator,
+                .device_index = creation_properties.device_index,
+                .external_semaphores = creation_properties.renderer_viewport_semaphores_interop,
+            };
+            if (hiprt_renderer_create(renderer_creation_properties, &self->renderer).failed) {
+                goto failed;
+            }
+            break;
+        }
+        case APP_RENDERER_HIP: {
+            WW_EXIT_WITH_MSG("TODO");
+            HipCreationProperties renderer_creation_properties = {
+                .allocator = creation_properties.allocator,
+                .device_index = creation_properties.device_index,
+            };
+            if (hip_renderer_create(renderer_creation_properties, &self->renderer).failed) {
+                goto failed;
+            }
+            break;
+        }
+    }
+
+    if (renderer_create_scene(self->renderer, &self->scene).failed) {
         goto failed;
     }
 
-    HipCreationProperties renderer_creation_properties = {
-        .allocator = creation_properties.allocator,
-        .device_index = creation_properties.device_index,
-#if USE_SEMAPHORES_INTEROP
-        .external_semaphores = true,
-        .viewport_external_memory_semaphores = viewport_get_external_semaphores(self->viewport),
-#endif
-    };
-    if (!app_init_renderer(self, renderer_creation_properties)) {
+    if (renderer_set_scene(self->renderer, self->scene.ptr).failed) {
+        goto failed;
+    }
+
+    if (renderer_create_camera(self->renderer, &self->camera).failed) {
+        goto failed;
+    }
+
+    if (scene_set_camera(self->scene, self->camera.ptr).failed) {
         goto failed;
     }
 
@@ -304,17 +331,14 @@ AppResult app_run(App* self) {
                 goto failed;
             }
 
-#if !USE_MEMORY_INTEROP
-            if (renderer_copy_target_to(self->renderer, viewport_get_mapped_input(self->viewport)).failed) {
+            if (!self->memory_interop && renderer_copy_target_to(self->renderer, viewport_get_mapped_input(self->viewport)).failed) {
                 goto failed;
             }
-#endif
 
-#if !USE_SEMAPHORES_INTEROP
-            if (viewport_wait_idle(self->viewport).failed) {
+            if (!self->semaphores_interop && viewport_wait_idle(self->viewport).failed) {
                 goto failed;
             }
-#endif
+
             viewport_result = viewport_render(self->viewport);
         }
         end_frame = clock();
@@ -340,38 +364,6 @@ void app_init_window(App* self, u32 width, u32 height) {
     self->window = glfwCreateWindow(width, height, "App name", NULL, NULL);
     glfwSetWindowUserPointer(self->window, self);
     glfwSetFramebufferSizeCallback(self->window, framebuffer_resize_callback);
-}
-
-b8 app_init_viewport(App* self, VulkanViewportCreationProperties creation_properties) {
-    if (vulkan_viewport_create(creation_properties, &self->viewport).failed) {
-        return false;
-    } 
-
-    return true;
-}
-
-b8 app_init_renderer(App* self, HipCreationProperties creation_properties) {
-    if (hip_renderer_create(creation_properties, &self->renderer).failed) {
-        return false;
-    }
-    
-    if (renderer_create_scene(self->renderer, &self->scene).failed) {
-        return false;
-    }
-
-    if (renderer_set_scene(self->renderer, self->scene.ptr).failed) {
-        return false;
-    }
-
-    if (renderer_create_camera(self->renderer, &self->camera).failed) {
-        return false;
-    }
-
-    if (scene_set_camera(self->scene, self->camera.ptr).failed) {
-        return false;
-    }
-
-    return true;
 }
 
 b8 app_load_scene(App* self, const char* file) {
@@ -498,18 +490,18 @@ b8 app_handle_resize(App* self) {
     }
 
     viewport_get_resolution(self->viewport, &width, &height);
-#if USE_MEMORY_INTEROP
-    WW_LOG_DEBUG("[App] renderer resize with interop (%d, %d)\n", width, height);
-    ViewportExternalHandle external_memory = viewport_get_external_memory(self->viewport);
-    if (renderer_set_target_external_memory(self->renderer, external_memory, width, height).failed) {
-        return false;
+    if (self->memory_interop) {
+        WW_LOG_DEBUG("[App] renderer resize with interop (%d, %d)\n", width, height);
+        ViewportExternalHandle external_memory = viewport_get_external_memory(self->viewport);
+        if (renderer_set_target_external_memory(self->renderer, external_memory, width, height).failed) {
+            return false;
+        }
+    } else {
+        WW_LOG_DEBUG("[App] renderer resize (%d, %d)\n", width, height);
+        if (renderer_set_target_resolution(self->renderer, width, height).failed) {
+            return false;
+        }
     }
-#else
-    WW_LOG_DEBUG("[App] renderer resize (%d, %d)\n", width, height);
-    if (renderer_set_target_resolution(self->renderer, width, height).failed) {
-        return false;
-    }
-#endif
 
     if (camera_set_aspect_ratio(self->camera, (f32)width / height).failed) {
         return false;
