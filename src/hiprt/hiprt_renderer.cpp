@@ -20,7 +20,7 @@ extern "C" {
 #include <ww/math.h>
 }
 
-typedef struct renderer_ptr_impl {
+typedef struct ww_renderer_ptr_impl {
     u32 width;
     u32 height;
     HipRTRenderContext context;
@@ -35,38 +35,38 @@ typedef struct renderer_ptr_impl {
     hipModule_t module;
     hipFunction_t kernel_func;
     hipStream_t stream;
-    scene_ptr scene;
-} renderer_ptr_impl;
+    ww_scene_ptr scene;
+} ww_renderer_ptr_impl;
 
-static void hiprt_renderer_destroy(renderer_ptr self);
-static RendererResult __ww_must_check hiprt_renderer_set_target_resolution(renderer_ptr self, u32 width, u32 height);
-static RendererResult __ww_must_check hiprt_renderer_set_external_memory(renderer_ptr self, ViewportExternalHandle external_memory, u32 width, u32 height);
-static RendererResult __ww_must_check hiprt_renderer_render(renderer_ptr self);
-static RendererResult __ww_must_check hiprt_renderer_copy_target_to(renderer_ptr self, void* dst);
-static RendererResult __ww_must_check hiprt_renderer_set_scene(renderer_ptr self, scene_ptr scene);
-static RendererResult __ww_must_check hiprt_renderer_create_scene(renderer_ptr self, Scene* scene);
-static RendererResult __ww_must_check hiprt_renderer_create_camera(renderer_ptr self, Camera* camera);
-static RendererResult __ww_must_check hiprt_renderer_create_object_instance(renderer_ptr self, const triangle_mesh_ptr triangle_mesh, ObjectInstance* object_instance);
-static RendererResult __ww_must_check hiprt_renderer_create_triangle_mesh(renderer_ptr self, TriangleMeshCreationProperties creation_properties, TriangleMesh* triangle_mesh);
-static RendererResult __ww_must_check hiprt_renderer_init(renderer_ptr self, HipRTCreationProperties creation_properties);
-static RendererResult __ww_must_check hiprt_renderer_free_target(renderer_ptr self);
+static void hiprt_renderer_destroy(ww_renderer_ptr self);
+static WwRendererResult __ww_must_check hiprt_renderer_set_target_resolution(ww_renderer_ptr self, u32 width, u32 height);
+static WwRendererResult __ww_must_check hiprt_renderer_set_external_memory(ww_renderer_ptr self, WwViewportExternalHandle external_memory, u32 width, u32 height);
+static WwRendererResult __ww_must_check hiprt_renderer_render(ww_renderer_ptr self);
+static WwRendererResult __ww_must_check hiprt_renderer_copy_target_to(ww_renderer_ptr self, void* dst);
+static WwRendererResult __ww_must_check hiprt_renderer_set_scene(ww_renderer_ptr self, ww_scene_ptr scene);
+static WwRendererResult __ww_must_check hiprt_renderer_create_scene(ww_renderer_ptr self, WwScene* scene);
+static WwRendererResult __ww_must_check hiprt_renderer_create_camera(ww_renderer_ptr self, WwCamera* camera);
+static WwRendererResult __ww_must_check hiprt_renderer_create_object_instance(ww_renderer_ptr self, const ww_triangle_mesh_ptr triangle_mesh, WwObjectInstance* object_instance);
+static WwRendererResult __ww_must_check hiprt_renderer_create_triangle_mesh(ww_renderer_ptr self, WwTriangleMeshCreationProperties creation_properties, WwTriangleMesh* triangle_mesh);
+static WwRendererResult __ww_must_check hiprt_renderer_init(ww_renderer_ptr self, HipRTCreationProperties creation_properties);
+static WwRendererResult __ww_must_check hiprt_renderer_free_target(ww_renderer_ptr self);
 
-RendererResult hiprt_renderer_create(HipRTCreationProperties creation_properties, Renderer* renderer) {
+WwRendererResult hiprt_renderer_create(HipRTCreationProperties creation_properties, WwRenderer* renderer) {
     assert(renderer);
 
-    ww_auto_type alloc_result = ww_allocator_alloc_type(creation_properties.allocator, renderer_ptr_impl);
+    ww_auto_type alloc_result = ww_allocator_alloc_type(creation_properties.allocator, ww_renderer_ptr_impl);
     if (alloc_result.failed) {
-        return renderer_result(RENDERER_ERROR_OUT_OF_HOST_MEMORY);
+        return ww_renderer_result(WW_RENDERER_ERROR_OUT_OF_HOST_MEMORY);
     }
 
-    renderer_ptr self = alloc_result.ptr;
-    RendererResult res = hiprt_renderer_init(self, creation_properties);
+    ww_renderer_ptr self = alloc_result.ptr;
+    WwRendererResult res = hiprt_renderer_init(self, creation_properties);
     if (res.failed) {
         hiprt_renderer_destroy(self);
         return res;
     }
 
-    static const renderer_vtable vtable = {
+    static const ww_renderer_vtable vtable = {
         .set_target_resolution = hiprt_renderer_set_target_resolution,
         .set_target_external_memory = hiprt_renderer_set_external_memory,
         .render = hiprt_renderer_render,
@@ -78,21 +78,21 @@ RendererResult hiprt_renderer_create(HipRTCreationProperties creation_properties
         .create_triangle_mesh = hiprt_renderer_create_triangle_mesh,
         .destroy = hiprt_renderer_destroy,
     };
-    *renderer = (Renderer){
+    *renderer = (WwRenderer){
         .ptr = self,
         .vtable = &vtable,
     };
     return res;
 }
 
-RendererResult hiprt_renderer_init(renderer_ptr self, HipRTCreationProperties creation_properties) {
-    *self = (renderer_ptr_impl){
+WwRendererResult hiprt_renderer_init(ww_renderer_ptr self, HipRTCreationProperties creation_properties) {
+    *self = (ww_renderer_ptr_impl){
         .context = {
             .allocator = creation_properties.allocator,
         },
     };
 
-    RendererResult res = HIP_CHECK(hipInit(0));
+    WwRendererResult res = HIP_CHECK(hipInit(0));
     if (res.failed) {
         return res;
     }
@@ -153,9 +153,9 @@ RendererResult hiprt_renderer_init(renderer_ptr self, HipRTCreationProperties cr
     return HIP_CHECK(hipStreamCreateWithFlags(&self->stream, hipStreamNonBlocking));
 }
 
-void hiprt_renderer_destroy(renderer_ptr self) {
+void hiprt_renderer_destroy(ww_renderer_ptr self) {
     assert(self);
-    RendererResult res = hiprt_renderer_free_target(self);
+    WwRendererResult res = hiprt_renderer_free_target(self);
 
     if (self->stream) {
         res = HIP_CHECK(hipStreamSynchronize(self->stream));
@@ -185,10 +185,10 @@ void hiprt_renderer_destroy(renderer_ptr self) {
     ww_allocator_free(self->context.allocator, self);
 }
 
-RendererResult hiprt_renderer_set_target_resolution(renderer_ptr self, u32 width, u32 height) {
+WwRendererResult hiprt_renderer_set_target_resolution(ww_renderer_ptr self, u32 width, u32 height) {
     assert(self);
 
-    RendererResult res = HIP_CHECK(hipStreamSynchronize(self->stream));
+    WwRendererResult res = HIP_CHECK(hipStreamSynchronize(self->stream));
     if (res.failed) {
         return res;
     }
@@ -204,10 +204,10 @@ RendererResult hiprt_renderer_set_target_resolution(renderer_ptr self, u32 width
     return res;
 }
 
-RendererResult hiprt_renderer_set_external_memory(renderer_ptr self, ViewportExternalHandle external_memory, u32 width, u32 height) {
+WwRendererResult hiprt_renderer_set_external_memory(ww_renderer_ptr self, WwViewportExternalHandle external_memory, u32 width, u32 height) {
     assert(self);
 
-    RendererResult res = HIP_CHECK(hipStreamSynchronize(self->stream));
+    WwRendererResult res = HIP_CHECK(hipStreamSynchronize(self->stream));
     if (res.failed) {
         return res;
     }
@@ -230,13 +230,13 @@ RendererResult hiprt_renderer_set_external_memory(renderer_ptr self, ViewportExt
     return res;
 }
 
-RendererResult hiprt_renderer_render(renderer_ptr self) {
+WwRendererResult hiprt_renderer_render(ww_renderer_ptr self) {
     assert(self);
     assert(self->pixels.ptr);
     assert(self->scene);
 
     // scene creation
-    RendererResult res;
+    WwRendererResult res;
     if (self->scene->rebuild && (res = hiprt_scene_rebuild(self->scene)).failed) {
         return res;
     }
@@ -300,10 +300,10 @@ RendererResult hiprt_renderer_render(renderer_ptr self) {
     }
 }
 
-RendererResult hiprt_renderer_copy_target_to(renderer_ptr self, void *dst) {
+WwRendererResult hiprt_renderer_copy_target_to(ww_renderer_ptr self, void *dst) {
     assert(self);
     assert(!self->pixels.external_memory);
-    RendererResult res = HIP_CHECK(hipMemcpyDtoHAsync(dst, self->pixels.ptr, self->width * self->height * 4 * sizeof(f32), self->stream));
+    WwRendererResult res = HIP_CHECK(hipMemcpyDtoHAsync(dst, self->pixels.ptr, self->width * self->height * 4 * sizeof(f32), self->stream));
     if (res.failed) {
         return res;
     }
@@ -311,34 +311,34 @@ RendererResult hiprt_renderer_copy_target_to(renderer_ptr self, void *dst) {
     return HIP_CHECK(hipStreamSynchronize(self->stream));
 }
 
-RendererResult hiprt_renderer_set_scene(renderer_ptr self, scene_ptr scene) {
+WwRendererResult hiprt_renderer_set_scene(ww_renderer_ptr self, ww_scene_ptr scene) {
     assert(self);
     self->scene = scene;
-    return renderer_result(RENDERER_SUCCESS);
+    return ww_renderer_result(WW_RENDERER_SUCCESS);
 }
 
-RendererResult hiprt_renderer_create_scene(renderer_ptr self, Scene* scene) {
+WwRendererResult hiprt_renderer_create_scene(ww_renderer_ptr self, WwScene* scene) {
     assert(self);
     return hiprt_scene_create(self->context, scene);
 }
 
-RendererResult hiprt_renderer_create_camera(renderer_ptr self, Camera* camera) {
+WwRendererResult hiprt_renderer_create_camera(ww_renderer_ptr self, WwCamera* camera) {
     assert(self);
-    return camera_def_impl_create(self->context.allocator, camera);
+    return ww_camera_def_impl_create(self->context.allocator, camera);
 }
 
-RendererResult hiprt_renderer_create_object_instance(renderer_ptr self, const triangle_mesh_ptr triangle_mesh, ObjectInstance* object_instance) {
+WwRendererResult hiprt_renderer_create_object_instance(ww_renderer_ptr self, const ww_triangle_mesh_ptr triangle_mesh, WwObjectInstance* object_instance) {
     assert(self);
     return hiprt_object_instance_create(self->context, triangle_mesh, object_instance);
 }
 
-RendererResult hiprt_renderer_create_triangle_mesh(renderer_ptr self, TriangleMeshCreationProperties creation_properties, TriangleMesh* triangle_mesh) {
+WwRendererResult hiprt_renderer_create_triangle_mesh(ww_renderer_ptr self, WwTriangleMeshCreationProperties creation_properties, WwTriangleMesh* triangle_mesh) {
     assert(self);
     return hiprt_triangle_mesh_create(self->context, creation_properties, triangle_mesh);
 }
 
-RendererResult hiprt_renderer_free_target(renderer_ptr self) {
-    RendererResult res = renderer_result(RENDERER_SUCCESS);
+WwRendererResult hiprt_renderer_free_target(ww_renderer_ptr self) {
+    WwRendererResult res = ww_renderer_result(WW_RENDERER_SUCCESS);
     if (self->pixels.external_memory) {
         res = HIP_CHECK(hipDestroyExternalMemory(self->pixels.external_memory));
     } else if (self->pixels.ptr) {

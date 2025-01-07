@@ -3,7 +3,7 @@
 #include <ww/renderer/camera.h>
 #include <ww/allocators/allocator.h>
 
-typedef struct camera_ptr_impl {
+typedef struct ww_camera_ptr_impl {
     WwAllocator allocator;
     b8 dirty;
     vec3 origin;
@@ -20,6 +20,6 @@ typedef struct camera_ptr_impl {
     vec3 look_from;
     vec3 look_at;
     vec3 vup;
-} camera_ptr_impl;
+} ww_camera_ptr_impl;
 
-RendererResult __ww_must_check camera_def_impl_create(WwAllocator allocator, Camera* camera);
+WwRendererResult __ww_must_check ww_camera_def_impl_create(WwAllocator allocator, WwCamera* camera);

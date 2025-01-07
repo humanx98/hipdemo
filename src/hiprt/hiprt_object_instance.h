@@ -9,11 +9,11 @@ extern "C" {
 #include <ww/renderer/scene.h>
 }
 
-typedef struct object_instance_ptr_impl {
+typedef struct ww_object_instance_ptr_impl {
     HipRTRenderContext context;
     hiprtInstance instance;
     mat4 transform;
-    WwDArray(scene_ptr) scenes;
-} object_instance_ptr_impl;
+    WwDArray(ww_scene_ptr) scenes;
+} ww_object_instance_ptr_impl;
 
-RendererResult __ww_must_check hiprt_object_instance_create(HipRTRenderContext context, const triangle_mesh_ptr triangle_mesh, ObjectInstance* object_instance);
+WwRendererResult __ww_must_check hiprt_object_instance_create(HipRTRenderContext context, const ww_triangle_mesh_ptr triangle_mesh, WwObjectInstance* object_instance);

@@ -9,29 +9,29 @@ extern "C" {
 #include <ww/exit.h>
 }
 
-static RendererResult __ww_must_check hiprt_scene_init(scene_ptr self, HipRTRenderContext context);
-static RendererResult __ww_must_check hiprt_scene_rebuild_input(scene_ptr self);
-static RendererResult __ww_must_check hiprt_scene_set_camera(scene_ptr self, camera_ptr camera);
-static RendererResult __ww_must_check hiprt_scene_attach_object_instance(scene_ptr self, object_instance_ptr object_instance);
-static RendererResult __ww_must_check hiprt_scene_detach_object_instance(scene_ptr self, object_instance_ptr object_instance);
-static void hiprt_scene_destroy(scene_ptr self);
+static WwRendererResult __ww_must_check hiprt_scene_init(ww_scene_ptr self, HipRTRenderContext context);
+static WwRendererResult __ww_must_check hiprt_scene_rebuild_input(ww_scene_ptr self);
+static WwRendererResult __ww_must_check hiprt_scene_set_camera(ww_scene_ptr self, ww_camera_ptr camera);
+static WwRendererResult __ww_must_check hiprt_scene_attach_object_instance(ww_scene_ptr self, ww_object_instance_ptr object_instance);
+static WwRendererResult __ww_must_check hiprt_scene_detach_object_instance(ww_scene_ptr self, ww_object_instance_ptr object_instance);
+static void hiprt_scene_destroy(ww_scene_ptr self);
 
-RendererResult hiprt_scene_create(HipRTRenderContext context, Scene* scene) {
+WwRendererResult hiprt_scene_create(HipRTRenderContext context, WwScene* scene) {
     assert(scene);
 
-    ww_auto_type alloc_res = ww_allocator_alloc_type(context.allocator, scene_ptr_impl);
+    ww_auto_type alloc_res = ww_allocator_alloc_type(context.allocator, ww_scene_ptr_impl);
     if (alloc_res.failed) {
-        return renderer_result(RENDERER_ERROR_OUT_OF_HOST_MEMORY);
+        return ww_renderer_result(WW_RENDERER_ERROR_OUT_OF_HOST_MEMORY);
     }
 
-    scene_ptr self = alloc_res.ptr;
-    RendererResult res = hiprt_scene_init(self, context);
+    ww_scene_ptr self = alloc_res.ptr;
+    WwRendererResult res = hiprt_scene_init(self, context);
     if (res.failed) {
         hiprt_scene_destroy(self);
         return res;
     }
 
-    static scene_vtable vtable = {
+    static ww_scene_vtable vtable = {
         .set_camera = hiprt_scene_set_camera,
         .attach_object_instance = hiprt_scene_attach_object_instance,
         .detach_object_instance = hiprt_scene_detach_object_instance,
@@ -39,26 +39,26 @@ RendererResult hiprt_scene_create(HipRTRenderContext context, Scene* scene) {
     };
 
     *scene = {
-        .ptr = (scene_ptr)self,
+        .ptr = (ww_scene_ptr)self,
         .vtable = &vtable,
     };
 
     return res;
 }
 
-RendererResult hiprt_scene_init(scene_ptr self, HipRTRenderContext context) {
+WwRendererResult hiprt_scene_init(ww_scene_ptr self, HipRTRenderContext context) {
     *self = {
         .context = context,
         .rebuild = true,
-        .attached_object_instances = ww_darray_init(context.allocator, object_instance_ptr),
+        .attached_object_instances = ww_darray_init(context.allocator, ww_object_instance_ptr),
     };
-    return renderer_result(RENDERER_SUCCESS);
+    return ww_renderer_result(WW_RENDERER_SUCCESS);
 }
 
-void hiprt_scene_destroy(scene_ptr self) {
+void hiprt_scene_destroy(ww_scene_ptr self) {
     assert(self);
 
-    RendererResult res = {};
+    WwRendererResult res = {};
     ww_darray_deinit(&self->attached_object_instances);
 
     if (self->input_buff) {
@@ -75,10 +75,10 @@ void hiprt_scene_destroy(scene_ptr self) {
     ww_allocator_free(self->context.allocator, self);
 }
 
-RendererResult hiprt_scene_rebuild(scene_ptr self) {
+WwRendererResult hiprt_scene_rebuild(ww_scene_ptr self) {
     assert(self);
 
-    RendererResult res = hiprt_scene_rebuild_input(self);
+    WwRendererResult res = hiprt_scene_rebuild_input(self);
     if (res.failed) {
         return res;
     }
@@ -127,7 +127,7 @@ RendererResult hiprt_scene_rebuild(scene_ptr self) {
     return res;
 }
 
-RendererResult hiprt_scene_rebuild_input(scene_ptr self) {
+WwRendererResult hiprt_scene_rebuild_input(ww_scene_ptr self) {
     std::vector<hiprtInstance> instances;
     std::vector<hiprtTransformHeader> transform_headers;
     std::vector<hiprtFrameMatrix> frame_matrices;
@@ -136,7 +136,7 @@ RendererResult hiprt_scene_rebuild_input(scene_ptr self) {
     transform_headers.reserve(instances_count);
     frame_matrices.reserve(instances_count);
 
-    ww_darray_foreach_by_ref(&self->attached_object_instances, object_instance_ptr, aoi) {
+    ww_darray_foreach_by_ref(&self->attached_object_instances, ww_object_instance_ptr, aoi) {
         instances.push_back((*aoi)->instance);
         hiprtTransformHeader header = {
             .frameIndex = (u32)transform_headers.size(),
@@ -151,7 +151,7 @@ RendererResult hiprt_scene_rebuild_input(scene_ptr self) {
         + transform_headers.size() * sizeof(hiprtTransformHeader)
         + frame_matrices.size() * sizeof(hiprtFrameMatrix);
 
-    RendererResult res;
+    WwRendererResult res;
     if (self->input_buff_size < new_input_buff_size) {
         if (self->input_buff) {
             res = HIP_CHECK(hipFree(self->input_buff));
@@ -192,53 +192,53 @@ RendererResult hiprt_scene_rebuild_input(scene_ptr self) {
     return HIP_CHECK(hipMemcpyHtoD(self->input.instanceFrames, frame_matrices.data(), frame_matrices.size() * sizeof(hiprtFrameMatrix)));
 }
 
-RendererResult hiprt_scene_set_camera(scene_ptr self, camera_ptr camera) {
+WwRendererResult hiprt_scene_set_camera(ww_scene_ptr self, ww_camera_ptr camera) {
     assert(self);
     self->camera = camera;
-    return renderer_result(RENDERER_SUCCESS);
+    return ww_renderer_result(WW_RENDERER_SUCCESS);
 }
 
-RendererResult hiprt_scene_attach_object_instance(scene_ptr self, object_instance_ptr object_instance) {
+WwRendererResult hiprt_scene_attach_object_instance(ww_scene_ptr self, ww_object_instance_ptr object_instance) {
     assert(self);
     assert(object_instance);
 
     for (usize i = 0; i < ww_darray_len(&self->attached_object_instances); i++) {
-        if (object_instance == ww_darray_get(&self->attached_object_instances, object_instance_ptr, i)) {
+        if (object_instance == ww_darray_get(&self->attached_object_instances, ww_object_instance_ptr, i)) {
             WW_LOG_WARN("[hiprt_scene] The same object instance has been attached twice.\n");
-            return renderer_result(RENDERER_SUCCESS);
+            return ww_renderer_result(WW_RENDERER_SUCCESS);
         }
     }
 
     if (!ww_darray_append(&self->attached_object_instances, object_instance)) {
-        return renderer_result(RENDERER_ERROR_OUT_OF_HOST_MEMORY);
+        return ww_renderer_result(WW_RENDERER_ERROR_OUT_OF_HOST_MEMORY);
     }
 
     if (!ww_darray_append(&object_instance->scenes, self)) {
-        return renderer_result(RENDERER_ERROR_OUT_OF_HOST_MEMORY);
+        return ww_renderer_result(WW_RENDERER_ERROR_OUT_OF_HOST_MEMORY);
     }
 
     self->rebuild = true;
-    return renderer_result(RENDERER_SUCCESS);
+    return ww_renderer_result(WW_RENDERER_SUCCESS);
 }
 
-RendererResult hiprt_scene_detach_object_instance(scene_ptr self, object_instance_ptr object_instance) {
+WwRendererResult hiprt_scene_detach_object_instance(ww_scene_ptr self, ww_object_instance_ptr object_instance) {
     assert(self);
     assert(object_instance);
 
     for (usize i = 0; i < ww_darray_len(&self->attached_object_instances); i++) {
-        if (object_instance == ww_darray_get(&self->attached_object_instances, object_instance_ptr, i)) {
+        if (object_instance == ww_darray_get(&self->attached_object_instances, ww_object_instance_ptr, i)) {
             ww_darray_swap_remove(&self->attached_object_instances, i);
             self->rebuild = true;
             for (usize j = 0; j < ww_darray_len(&object_instance->scenes); j++) {
-                if (self == ww_darray_get(&object_instance->scenes, scene_ptr, j)) {
+                if (self == ww_darray_get(&object_instance->scenes, ww_scene_ptr, j)) {
                     ww_darray_swap_remove(&object_instance->scenes, j);
                     break;
                 }
             }
-            return renderer_result(RENDERER_SUCCESS);
+            return ww_renderer_result(WW_RENDERER_SUCCESS);
         }
     }
 
     WW_LOG_WARN("[hiprt_scene] Detach non existing object instance.\n");
-    return renderer_result(RENDERER_SUCCESS);
+    return ww_renderer_result(WW_RENDERER_SUCCESS);
 }

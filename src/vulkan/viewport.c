@@ -33,7 +33,7 @@ typedef struct TransitionImageLayoutInfo {
     VkPipelineStageFlags to_pipeline_stage;
 } TransitionImageLayoutInfo;
 
-typedef struct viewport_ptr_impl {
+typedef struct ww_viewport_ptr_impl {
     WwAllocator allocator;
     u32 frames_in_flight;
     u32 current_frame;
@@ -88,67 +88,67 @@ typedef struct viewport_ptr_impl {
     struct {
         b8 enabled;
         VmaPool pool;
-        ViewportExternalHandle handle;
+        WwViewportExternalHandle handle;
     } external_memory;
     struct {
         b8 enabled;
         VkSemaphore wait;
-        ViewportExternalHandle wait_handle;
+        WwViewportExternalHandle wait_handle;
         VkSemaphore signal;
-        ViewportExternalHandle signal_handle;
+        WwViewportExternalHandle signal_handle;
     } external_semaphores;
-} viewport_ptr_impl;
+} ww_viewport_ptr_impl;
 
-static void vulkan_viewport_destroy(viewport_ptr self);
-static ViewportResult __ww_must_check vulkan_viewport_render(viewport_ptr self);
-static ViewportResult __ww_must_check vulkan_viewport_wait_idle(viewport_ptr self);
-static void* __ww_must_check vulkan_viewport_get_mapped_input(viewport_ptr self);
-static ViewportExternalHandle __ww_must_check vulkan_viewport_get_external_memory(viewport_ptr self);
-static ViewportExternalSemaphores __ww_must_check vulkan_viewport_get_external_semaphores(viewport_ptr self);
-static ViewportResult __ww_must_check vulkan_viewport_set_resolution(viewport_ptr self, u32 width, u32 height);
-static void vulkan_viewport_get_resolution(viewport_ptr self, u32* width, u32* height);
+static void vulkan_viewport_destroy(ww_viewport_ptr self);
+static WwViewportResult __ww_must_check vulkan_viewport_render(ww_viewport_ptr self);
+static WwViewportResult __ww_must_check vulkan_viewport_wait_idle(ww_viewport_ptr self);
+static void* __ww_must_check vulkan_viewport_get_mapped_input(ww_viewport_ptr self);
+static WwViewportExternalHandle __ww_must_check vulkan_viewport_get_external_memory(ww_viewport_ptr self);
+static WwViewportExternalSemaphores __ww_must_check vulkan_viewport_get_external_semaphores(ww_viewport_ptr self);
+static WwViewportResult __ww_must_check vulkan_viewport_set_resolution(ww_viewport_ptr self, u32 width, u32 height);
+static void vulkan_viewport_get_resolution(ww_viewport_ptr self, u32* width, u32* height);
 
-static VulkanResult __ww_must_check vulkan_viewport_init_vulkan(viewport_ptr self, VulkanViewportCreationProperties creation_properties);
-static VulkanResult __ww_must_check vulkan_viewport_create_instance(viewport_ptr self, VulkanViewportCreationProperties creation_properties, const VkDebugUtilsMessengerCreateInfoEXT* debug_create_info);
-static VulkanResult __ww_must_check vulkan_viewport_pick_physical_device(viewport_ptr self, u32 device_index, const WwDArray(const char*)* device_extensions);
-static VulkanResult __ww_must_check vulkan_viewport_get_swap_chain_details(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_create_logical_device(viewport_ptr self, const WwDArray(const char*)* device_extensions);
-static VulkanResult __ww_must_check vulkan_viewport_create_command_pool(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_create_command_buffers(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_create_sync_objects(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_create_shader_modules(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_allocate_descriptor_sets(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_create_swapchain(viewport_ptr self, u32 width, u32 height);
-static VulkanResult __ww_must_check vulkan_viewport_create_swapchain_image_views(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_create_render_pass(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_create_graphics_pipeline(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_create_swapchain_framebuffers(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_create_input_image(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_create_external_memory_pool(viewport_ptr self, const VkBufferCreateInfo* create_info, const VmaAllocationCreateInfo* alloc_create_info);
-static void vulkan_viewport_update_descriptor_sets(viewport_ptr self);
-static VulkanResult __ww_must_check vulkan_viewport_record_command_buffer(viewport_ptr self, VkCommandBuffer command_buffer, u32 image_index);
-static void vulkan_viewport_cleanup_swapchain_pipeline_input_image(viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_init_vulkan(ww_viewport_ptr self, VulkanViewportCreationProperties creation_properties);
+static VulkanResult __ww_must_check vulkan_viewport_create_instance(ww_viewport_ptr self, VulkanViewportCreationProperties creation_properties, const VkDebugUtilsMessengerCreateInfoEXT* debug_create_info);
+static VulkanResult __ww_must_check vulkan_viewport_pick_physical_device(ww_viewport_ptr self, u32 device_index, const WwDArray(const char*)* device_extensions);
+static VulkanResult __ww_must_check vulkan_viewport_get_swap_chain_details(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_create_logical_device(ww_viewport_ptr self, const WwDArray(const char*)* device_extensions);
+static VulkanResult __ww_must_check vulkan_viewport_create_command_pool(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_create_command_buffers(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_create_sync_objects(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_create_shader_modules(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_allocate_descriptor_sets(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_create_swapchain(ww_viewport_ptr self, u32 width, u32 height);
+static VulkanResult __ww_must_check vulkan_viewport_create_swapchain_image_views(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_create_render_pass(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_create_graphics_pipeline(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_create_swapchain_framebuffers(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_create_input_image(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_create_external_memory_pool(ww_viewport_ptr self, const VkBufferCreateInfo* create_info, const VmaAllocationCreateInfo* alloc_create_info);
+static void vulkan_viewport_update_descriptor_sets(ww_viewport_ptr self);
+static VulkanResult __ww_must_check vulkan_viewport_record_command_buffer(ww_viewport_ptr self, VkCommandBuffer command_buffer, u32 image_index);
+static void vulkan_viewport_cleanup_swapchain_pipeline_input_image(ww_viewport_ptr self);
 static VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data); 
 static void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, TransitionImageLayoutInfo info);
-static ViewportResult __ww_must_check to_viewport_result(VulkanResult res);
-static VulkanResult __ww_must_check create_external_semaphore(VkDevice device, VkSemaphore* semaphore, ViewportExternalHandle* handle);
+static WwViewportResult __ww_must_check to_viewport_result(VulkanResult res);
+static VulkanResult __ww_must_check create_external_semaphore(VkDevice device, VkSemaphore* semaphore, WwViewportExternalHandle* handle);
 
-VulkanResult vulkan_viewport_create(VulkanViewportCreationProperties creation_properties, Viewport* viewport) {
+VulkanResult vulkan_viewport_create(VulkanViewportCreationProperties creation_properties, WwViewport* viewport) {
     assert(viewport);
 
-    ww_auto_type alloc_result = ww_allocator_alloc_type(creation_properties.allocator, viewport_ptr_impl);
+    ww_auto_type alloc_result = ww_allocator_alloc_type(creation_properties.allocator, ww_viewport_ptr_impl);
     if (alloc_result.failed) {
         return VULKAN_CHECK(VK_ERROR_OUT_OF_HOST_MEMORY);
     }
 
-    viewport_ptr self = alloc_result.ptr;
+    ww_viewport_ptr self = alloc_result.ptr;
     VulkanResult res = vulkan_viewport_init_vulkan(self, creation_properties);
     if (res.failed) {
         vulkan_viewport_destroy(self);
         return res;
     }
 
-    const static viewport_vtable vtable = {
+    const static ww_viewport_vtable vtable = {
         .render = vulkan_viewport_render,
         .wait_idle = vulkan_viewport_wait_idle,
         .get_mapped_input = vulkan_viewport_get_mapped_input,
@@ -159,7 +159,7 @@ VulkanResult vulkan_viewport_create(VulkanViewportCreationProperties creation_pr
         .destroy = vulkan_viewport_destroy,
     };
 
-    *viewport = (Viewport) {
+    *viewport = (WwViewport) {
         .ptr = self,
         .vtable = &vtable,
     };
@@ -167,8 +167,8 @@ VulkanResult vulkan_viewport_create(VulkanViewportCreationProperties creation_pr
     return res;
 }
 
-VulkanResult vulkan_viewport_init_vulkan(viewport_ptr self, VulkanViewportCreationProperties creation_properties) {
-    *self = (viewport_ptr_impl) {
+VulkanResult vulkan_viewport_init_vulkan(ww_viewport_ptr self, VulkanViewportCreationProperties creation_properties) {
+    *self = (ww_viewport_ptr_impl) {
         .allocator = creation_properties.allocator,
         .frames_in_flight = creation_properties.frames_in_flight,
         .prefer_vsync = creation_properties.prefer_vsync,
@@ -321,7 +321,7 @@ failed_device_creation:
     return res;
 }
 
-void vulkan_viewport_destroy(viewport_ptr self) {
+void vulkan_viewport_destroy(ww_viewport_ptr self) {
     assert(self);
 
     vulkan_viewport_cleanup_swapchain_pipeline_input_image(self);
@@ -404,12 +404,12 @@ void vulkan_viewport_destroy(viewport_ptr self) {
     ww_allocator_free(self->allocator, self);
 }
 
-ViewportResult vulkan_viewport_wait_idle(viewport_ptr self) {
+WwViewportResult vulkan_viewport_wait_idle(ww_viewport_ptr self) {
     assert(self);
     return to_viewport_result(VULKAN_CHECK(vkQueueWaitIdle(self->present_queue)));
 }
 
-ViewportResult vulkan_viewport_set_resolution(viewport_ptr self, u32 width, u32 height) {
+WwViewportResult vulkan_viewport_set_resolution(ww_viewport_ptr self, u32 width, u32 height) {
     assert(self);
 
     VulkanResult res;
@@ -523,7 +523,7 @@ ViewportResult vulkan_viewport_set_resolution(viewport_ptr self, u32 width, u32 
     return to_viewport_result(res);
 }
 
-void vulkan_viewport_get_resolution(viewport_ptr self, u32* width, u32* height) {
+void vulkan_viewport_get_resolution(ww_viewport_ptr self, u32* width, u32* height) {
     assert(self);
     assert(width);
     assert(height);
@@ -532,28 +532,28 @@ void vulkan_viewport_get_resolution(viewport_ptr self, u32* width, u32* height) 
     *height = self->swapchain.details.extent.height;
 }
 
-void* vulkan_viewport_get_mapped_input(viewport_ptr self) {
+void* vulkan_viewport_get_mapped_input(ww_viewport_ptr self) {
     assert(self);
     assert(!self->external_memory.enabled);
     return self->input.staging_buffer_allocation_info.pMappedData;
 }
 
-ViewportExternalHandle vulkan_viewport_get_external_memory(viewport_ptr self) {
+WwViewportExternalHandle vulkan_viewport_get_external_memory(ww_viewport_ptr self) {
     assert(self);
     assert(self->external_memory.enabled);
     return self->external_memory.handle;
 }
 
-ViewportExternalSemaphores vulkan_viewport_get_external_semaphores(viewport_ptr self) {
+WwViewportExternalSemaphores vulkan_viewport_get_external_semaphores(ww_viewport_ptr self) {
     assert(self);
     assert(self->external_semaphores.enabled);
-    return (ViewportExternalSemaphores){
+    return (WwViewportExternalSemaphores){
         .signal_external_memory_for_viewport = self->external_semaphores.wait_handle,
         .wait_for_signal_external_memory_from_viewport = self->external_semaphores.signal_handle,
     };
 }
 
-VulkanResult vulkan_viewport_create_instance(viewport_ptr self, VulkanViewportCreationProperties creation_properties, const VkDebugUtilsMessengerCreateInfoEXT* debug_create_info) {
+VulkanResult vulkan_viewport_create_instance(ww_viewport_ptr self, VulkanViewportCreationProperties creation_properties, const VkDebugUtilsMessengerCreateInfoEXT* debug_create_info) {
     WwDArray(const char*) required_extensions = ww_darray_init(self->allocator, const char*);
     WwDArray(VkLayerProperties) available_layers = ww_darray_init(self->allocator, VkLayerProperties);
     VulkanResult res = {};
@@ -618,7 +618,7 @@ failed:
     return res;
 }
 
-VulkanResult vulkan_viewport_pick_physical_device(viewport_ptr self, u32 device_index, const WwDArray(const char*)* device_extensions) {
+VulkanResult vulkan_viewport_pick_physical_device(ww_viewport_ptr self, u32 device_index, const WwDArray(const char*)* device_extensions) {
     WwDArray(VkExtensionProperties) available_extension_properties = ww_darray_init(self->allocator, VkExtensionProperties);
 
     VulkanResult res = vulkan_pick_physical_device(self->instance, device_index, &self->physical_device);
@@ -676,7 +676,7 @@ failed:
     return res;
 }
 
-VulkanResult vulkan_viewport_get_swap_chain_details(viewport_ptr self) {
+VulkanResult vulkan_viewport_get_swap_chain_details(ww_viewport_ptr self) {
     WwDArray(VkSurfaceFormatKHR) formats = ww_darray_init(self->allocator, VkSurfaceFormatKHR);
     WwDArray(VkPresentModeKHR) present_modes = ww_darray_init(self->allocator, VkSurfaceFormatKHR);
 
@@ -755,7 +755,7 @@ failed:
     return res;
 }
 
-VulkanResult vulkan_viewport_create_logical_device(viewport_ptr self, const WwDArray(const char*)* device_extensions) {
+VulkanResult vulkan_viewport_create_logical_device(ww_viewport_ptr self, const WwDArray(const char*)* device_extensions) {
     WwDArray(VkDeviceQueueCreateInfo) queue_create_infos = ww_darray_init(self->allocator, VkDeviceQueueCreateInfo);
     VulkanResult res = {};
     if (!ww_darray_ensure_total_capacity_precise(&queue_create_infos, 2)) {
@@ -799,7 +799,7 @@ failed:
     return res;
 }
 
-VulkanResult vulkan_viewport_create_command_pool(viewport_ptr self) {
+VulkanResult vulkan_viewport_create_command_pool(ww_viewport_ptr self) {
     VkCommandPoolCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
@@ -808,7 +808,7 @@ VulkanResult vulkan_viewport_create_command_pool(viewport_ptr self) {
     return VULKAN_CHECK(vkCreateCommandPool(self->device, &create_info, NULL, &self->command_pool));
 }
 
-VulkanResult vulkan_viewport_create_command_buffers(viewport_ptr self) {
+VulkanResult vulkan_viewport_create_command_buffers(ww_viewport_ptr self) {
     VulkanResult res = {};
     if (!ww_darray_ensure_total_capacity_precise(&self->command_buffers, self->frames_in_flight)) {
         res = VULKAN_CHECK(VK_ERROR_OUT_OF_HOST_MEMORY);
@@ -830,7 +830,7 @@ VulkanResult vulkan_viewport_create_command_buffers(viewport_ptr self) {
     return res;
 }
 
-VulkanResult vulkan_viewport_create_sync_objects(viewport_ptr self) {
+VulkanResult vulkan_viewport_create_sync_objects(ww_viewport_ptr self) {
     VulkanResult res = {};
     if (!ww_darray_ensure_total_capacity_precise(&self->image_available_semaphores, self->frames_in_flight)
         || !ww_darray_ensure_total_capacity_precise(&self->render_finished_semaphores, self->frames_in_flight)
@@ -900,7 +900,7 @@ VulkanResult vulkan_viewport_create_sync_objects(viewport_ptr self) {
     return res;
 }
 
-VulkanResult vulkan_viewport_create_shader_modules(viewport_ptr self) {
+VulkanResult vulkan_viewport_create_shader_modules(ww_viewport_ptr self) {
     WwDArray(u8) vert_shader_code = ww_darray_init(self->allocator, u8);
     WwDArray(u8) frag_shader_code = ww_darray_init(self->allocator, u8);
     VulkanResult res = {};
@@ -938,7 +938,7 @@ failed:
     return res;
 }
 
-VulkanResult vulkan_viewport_allocate_descriptor_sets(viewport_ptr self) {
+VulkanResult vulkan_viewport_allocate_descriptor_sets(ww_viewport_ptr self) {
     VkDescriptorSetLayoutBinding binding = {
         .binding = 0,
         .descriptorCount = 1,
@@ -996,7 +996,7 @@ VulkanResult vulkan_viewport_allocate_descriptor_sets(viewport_ptr self) {
     return res;
 }
 
-VulkanResult vulkan_viewport_create_swapchain(viewport_ptr self, u32 width, u32 height) {
+VulkanResult vulkan_viewport_create_swapchain(ww_viewport_ptr self, u32 width, u32 height) {
     VkSurfaceCapabilitiesKHR capabilities = self->swapchain.details.capabilities;
     if (capabilities.currentExtent.width != WW_U32_MAX) {
         self->swapchain.details.extent = capabilities.currentExtent;
@@ -1046,7 +1046,7 @@ VulkanResult vulkan_viewport_create_swapchain(viewport_ptr self, u32 width, u32 
     return res;
 }
 
-VulkanResult vulkan_viewport_create_swapchain_image_views(viewport_ptr self) {
+VulkanResult vulkan_viewport_create_swapchain_image_views(ww_viewport_ptr self) {
     VulkanResult res = {};
 
     if (!ww_darray_ensure_total_capacity_precise(&self->swapchain.image_views, ww_darray_len(&self->swapchain.images))) {
@@ -1076,7 +1076,7 @@ VulkanResult vulkan_viewport_create_swapchain_image_views(viewport_ptr self) {
     return res;
 }
 
-VulkanResult vulkan_viewport_create_render_pass(viewport_ptr self) {
+VulkanResult vulkan_viewport_create_render_pass(ww_viewport_ptr self) {
     VkAttachmentDescription attachment = {
         .format = self->swapchain.details.format.format,
         .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -1120,7 +1120,7 @@ VulkanResult vulkan_viewport_create_render_pass(viewport_ptr self) {
     return VULKAN_CHECK(vkCreateRenderPass(self->device, &create_info, NULL, &self->render_pass));
 }
 
-VulkanResult vulkan_viewport_create_graphics_pipeline(viewport_ptr self) {
+VulkanResult vulkan_viewport_create_graphics_pipeline(ww_viewport_ptr self) {
     VkPipelineShaderStageCreateInfo shader_stages[] = {
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -1222,7 +1222,7 @@ VulkanResult vulkan_viewport_create_graphics_pipeline(viewport_ptr self) {
     return res;
 }
 
-VulkanResult vulkan_viewport_create_swapchain_framebuffers(viewport_ptr self) {
+VulkanResult vulkan_viewport_create_swapchain_framebuffers(ww_viewport_ptr self) {
     VulkanResult res = {};
     if (!ww_darray_ensure_total_capacity_precise(&self->swapchain.framebuffers, ww_darray_len(&self->swapchain.image_views))) {
         res = VULKAN_CHECK(VK_ERROR_OUT_OF_HOST_MEMORY);
@@ -1252,7 +1252,7 @@ VulkanResult vulkan_viewport_create_swapchain_framebuffers(viewport_ptr self) {
     return res;
 }
 
-static VulkanResult vulkan_viewport_create_input_image(viewport_ptr self) {
+static VulkanResult vulkan_viewport_create_input_image(ww_viewport_ptr self) {
     VkFormat input_image_format = VK_FORMAT_R32G32B32A32_SFLOAT;
     VkImageCreateInfo img_create_info = { 
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -1361,7 +1361,7 @@ static VulkanResult vulkan_viewport_create_input_image(viewport_ptr self) {
             .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR,
         };
 
-        self->external_memory.handle.type = VIEWPORT_EXTERNAL_HANDLE_WIN32;
+        self->external_memory.handle.type = WW_VIEWPORT_EXTERNAL_HANDLE_WIN32;
         res = VULKAN_CHECK(vkGetMemoryWin32HandleKHR(self->device, &get_handle_info, &self->external_memory.handle.handle.win32));
         if (res.failed) {
             return res;
@@ -1384,7 +1384,7 @@ static VulkanResult vulkan_viewport_create_input_image(viewport_ptr self) {
     return res;
 }
 
-VulkanResult vulkan_viewport_create_external_memory_pool(viewport_ptr self, const VkBufferCreateInfo* create_info, const VmaAllocationCreateInfo* alloc_create_info) {
+VulkanResult vulkan_viewport_create_external_memory_pool(ww_viewport_ptr self, const VkBufferCreateInfo* create_info, const VmaAllocationCreateInfo* alloc_create_info) {
     u32 mem_type_index;
     VulkanResult res = VULKAN_CHECK(vmaFindMemoryTypeIndexForBufferInfo(self->vma_allocator, create_info, alloc_create_info, &mem_type_index));
     if (res.failed) {
@@ -1406,7 +1406,7 @@ VulkanResult vulkan_viewport_create_external_memory_pool(viewport_ptr self, cons
     return VULKAN_CHECK(vmaCreatePool(self->vma_allocator, &pool_create_info, &self->external_memory.pool));
 }
 
-void vulkan_viewport_update_descriptor_sets(viewport_ptr self) {
+void vulkan_viewport_update_descriptor_sets(ww_viewport_ptr self) {
     VulkanResult res  = {};
     for (usize i = 0; i < self->frames_in_flight; i++) {
         VkDescriptorImageInfo image_info = {
@@ -1428,7 +1428,7 @@ void vulkan_viewport_update_descriptor_sets(viewport_ptr self) {
     }
 }
 
-VulkanResult vulkan_viewport_record_command_buffer(viewport_ptr self, VkCommandBuffer command_buffer, u32 image_index) {
+VulkanResult vulkan_viewport_record_command_buffer(ww_viewport_ptr self, VkCommandBuffer command_buffer, u32 image_index) {
     VkCommandBufferBeginInfo begin_info = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
     VulkanResult res = VULKAN_CHECK(vkBeginCommandBuffer(command_buffer, &begin_info));
     if (res.failed) {
@@ -1505,7 +1505,7 @@ VulkanResult vulkan_viewport_record_command_buffer(viewport_ptr self, VkCommandB
     return res;
 }
 
-ViewportResult vulkan_viewport_render(viewport_ptr self) {
+WwViewportResult vulkan_viewport_render(ww_viewport_ptr self) {
     assert(self);
     VkFence in_flight_fence = ww_darray_get(&self->in_flight_fences, VkFence, self->current_frame);
     VkSemaphore image_available_semaphore = ww_darray_get(&self->image_available_semaphores, VkSemaphore, self->current_frame);
@@ -1588,7 +1588,7 @@ ViewportResult vulkan_viewport_render(viewport_ptr self) {
     return to_viewport_result(res);
 }
 
-void vulkan_viewport_cleanup_swapchain_pipeline_input_image(viewport_ptr self) {
+void vulkan_viewport_cleanup_swapchain_pipeline_input_image(ww_viewport_ptr self) {
     if (self->input.staging_buffer != VK_NULL_HANDLE) {
         vmaDestroyBuffer(self->vma_allocator, self->input.staging_buffer, self->input.staging_buffer_allocation);
         self->input.staging_buffer = VK_NULL_HANDLE;
@@ -1705,24 +1705,24 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, Tran
     );
 }
 
-ViewportResult to_viewport_result(VulkanResult vulkan_result) {
-    ViewportResult res = { .failed = vulkan_result.failed };
+WwViewportResult to_viewport_result(VulkanResult vulkan_result) {
+    WwViewportResult res = { .failed = vulkan_result.failed };
     switch (vulkan_result.code) {
         case VK_ERROR_OUT_OF_DATE_KHR:
-            res.code = VIEWPORT_ERROR_OUT_OF_DATE;
+            res.code = WW_VIEWPORT_ERROR_OUT_OF_DATE;
             break;
         case VK_SUBOPTIMAL_KHR:
-            res.code = VIEWPORT_SUBOPTIMAL;
+            res.code = WW_VIEWPORT_SUBOPTIMAL;
             break;
         default:
-            res.code = VIEWPORT_ERROR_INTERNAL;
+            res.code = WW_VIEWPORT_ERROR_INTERNAL;
             break;
     }
 
     return res;
 }
 
-VulkanResult create_external_semaphore(VkDevice device, VkSemaphore* semaphore, ViewportExternalHandle* handle) {
+VulkanResult create_external_semaphore(VkDevice device, VkSemaphore* semaphore, WwViewportExternalHandle* handle) {
     VkSemaphoreCreateInfo semaphore_create_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
     VkExportSemaphoreCreateInfoKHR export_create_info = {
         .sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO_KHR,
@@ -1737,7 +1737,7 @@ VulkanResult create_external_semaphore(VkDevice device, VkSemaphore* semaphore, 
 
 
 #if defined(_WIN64)
-    *handle = (ViewportExternalHandle){ .type = VIEWPORT_EXTERNAL_HANDLE_WIN32 };
+    *handle = (WwViewportExternalHandle){ .type = WW_VIEWPORT_EXTERNAL_HANDLE_WIN32 };
     VkSemaphoreGetWin32HandleInfoKHR get_handle_info = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR,
         .semaphore = *semaphore,

@@ -15,7 +15,7 @@ typedef struct HipRTRenderContext {
     hiprtContext hiprt;
 } HipRTRenderContext;
 
-RendererResult __ww_must_check hiprt_check(const char * file, const i32 line, hiprtError err, const char* expression);
+WwRendererResult __ww_must_check hiprt_check(const char * file, const i32 line, hiprtError err, const char* expression);
 #define HIPRT_CHECK(err) hiprt_check(__FILE__, __LINE__, err, #err)
 
 inline static hiprtFrameMatrix mat4_to_hiprt_frame_matrix(mat4 transform) {

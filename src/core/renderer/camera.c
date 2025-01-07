@@ -1,7 +1,7 @@
 #include <ww/renderer/camera.h>
 #include <assert.h>
 
-static inline void assert_camera(Camera camera) {
+static inline void assert_camera(WwCamera camera) {
     assert(camera.ptr);
     assert(camera.vtable);
     assert(camera.vtable->set_aperture);
@@ -12,32 +12,32 @@ static inline void assert_camera(Camera camera) {
     assert(camera.vtable->destroy);
 }
 
-RendererResult camera_set_aperture(Camera camera, f32 aperture) {
+WwRendererResult ww_camera_set_aperture(WwCamera camera, f32 aperture) {
     assert_camera(camera);
     return camera.vtable->set_aperture(camera.ptr, aperture);
 }
 
-RendererResult camera_set_aspect_ratio(Camera camera, f32 aspect_ratio) {
+WwRendererResult ww_camera_set_aspect_ratio(WwCamera camera, f32 aspect_ratio) {
     assert_camera(camera);
     return camera.vtable->set_aspect_ratio(camera.ptr, aspect_ratio);
 }
 
-RendererResult camera_set_focus_dist(Camera camera, f32 focus_dist) {
+WwRendererResult ww_camera_set_focus_dist(WwCamera camera, f32 focus_dist) {
     assert_camera(camera);
     return camera.vtable->set_focus_dist(camera.ptr, focus_dist);
 }
 
-RendererResult camera_set_vfov(Camera camera, f32 vfov) {
+WwRendererResult ww_camera_set_vfov(WwCamera camera, f32 vfov) {
     assert_camera(camera);
     return camera.vtable->set_vfov(camera.ptr, vfov);
 }
 
-RendererResult camera_set_look_at(Camera camera, vec3 position, vec3 at, vec3 up) {
+WwRendererResult ww_camera_set_look_at(WwCamera camera, vec3 position, vec3 at, vec3 up) {
     assert_camera(camera);
     return camera.vtable->set_look_at(camera.ptr, position, at, up);
 }
 
-void camera_destroy(Camera camera) {
+void ww_camera_destroy(WwCamera camera) {
     assert_camera(camera);
     return camera.vtable->destroy(camera.ptr);
 }

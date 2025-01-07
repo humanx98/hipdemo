@@ -9,18 +9,18 @@ b8 hip_failed(const char * file, const i32 line, hipError_t err, const char* exp
     return err != hipSuccess;
 }
 
-RendererResult hip_check(const char * file, const i32 line, hipError_t err, const char* expression) {
+WwRendererResult hip_check(const char * file, const i32 line, hipError_t err, const char* expression) {
     if (err != hipSuccess) {
         WW_LOG_ERROR("%s:%d: \"%s\" returned error %d, %s\n", file, line, expression, err, hipGetErrorString(err));
     }
 
-    RendererResult res = {
+    WwRendererResult res = {
         .failed = err != hipSuccess,
     };
 
     switch (err) {
         default:
-            res.code = RENDERER_ERROR_INTERNAL;
+            res.code = WW_RENDERER_ERROR_INTERNAL;
             break;
     }
 
@@ -79,14 +79,14 @@ b8 hip_get_device_uuid(u32 device_id, HipUUID* result) {
     return true;
 }
 
-hipError_t hip_import_viewport_external_semaphore(hipExternalSemaphore_t* semaphore, ViewportExternalHandle handle) {
+hipError_t hip_import_viewport_external_semaphore(hipExternalSemaphore_t* semaphore, WwViewportExternalHandle handle) {
     hipExternalSemaphoreHandleDesc desc = {};
     switch (handle.type) {
-        case VIEWPORT_EXTERNAL_HANDLE_WIN32:
+        case WW_VIEWPORT_EXTERNAL_HANDLE_WIN32:
             desc.type = hipExternalSemaphoreHandleTypeOpaqueWin32;
             desc.handle.win32.handle = handle.handle.win32;
             break;
-        case VIEWPORT_EXTERNAL_HANDLE_FD:
+        case WW_VIEWPORT_EXTERNAL_HANDLE_FD:
             desc.type = hipExternalSemaphoreHandleTypeOpaqueFd;
             desc.handle.fd = handle.handle.fd;
             break;
@@ -94,16 +94,16 @@ hipError_t hip_import_viewport_external_semaphore(hipExternalSemaphore_t* semaph
     return hipImportExternalSemaphore(semaphore, &desc);
 }
 
-hipError_t hip_import_viewport_external_memory(hipExternalMemory_t* memory, ViewportExternalHandle handle, usize size) {
+hipError_t hip_import_viewport_external_memory(hipExternalMemory_t* memory, WwViewportExternalHandle handle, usize size) {
     hipExternalMemoryHandleDesc desc = {
         .size = size,
     };
     switch (handle.type) {
-        case VIEWPORT_EXTERNAL_HANDLE_WIN32:
+        case WW_VIEWPORT_EXTERNAL_HANDLE_WIN32:
             desc.type = hipExternalMemoryHandleTypeOpaqueWin32;
             desc.handle.win32.handle = handle.handle.win32;
             break;
-        case VIEWPORT_EXTERNAL_HANDLE_FD:
+        case WW_VIEWPORT_EXTERNAL_HANDLE_FD:
             desc.type = hipExternalMemoryHandleTypeOpaqueFd;
             desc.handle.fd = handle.handle.fd;
             break;

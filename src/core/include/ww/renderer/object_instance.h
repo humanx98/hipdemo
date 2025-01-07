@@ -4,19 +4,19 @@
 #include <ww/defines.h>
 #include <ww/renderer/result.h>
 
-WW_DEFINE_HANDLE(object_instance_ptr);
-typedef RendererResult __ww_must_check (*object_instance_set_transform_fn)(object_instance_ptr ptr, mat4 transform);
-typedef void (*object_instance_destroy_fn)(object_instance_ptr ptr);
+WW_DEFINE_HANDLE(ww_object_instance_ptr);
+typedef WwRendererResult __ww_must_check (*ww_object_instance_set_transform_fn)(ww_object_instance_ptr ptr, mat4 transform);
+typedef void (*ww_object_instance_destroy_fn)(ww_object_instance_ptr ptr);
 
-typedef struct object_instance_vtable {
-    object_instance_set_transform_fn set_transform;
-    object_instance_destroy_fn destroy;
-} object_instance_vtable;
+typedef struct ww_object_instance_vtable {
+    ww_object_instance_set_transform_fn set_transform;
+    ww_object_instance_destroy_fn destroy;
+} ww_object_instance_vtable;
 
-typedef struct ObjectInstance {
-    object_instance_ptr ptr;
-    const object_instance_vtable* vtable;
-} ObjectInstance;
+typedef struct WwObjectInstance {
+    ww_object_instance_ptr ptr;
+    const ww_object_instance_vtable* vtable;
+} WwObjectInstance;
 
-RendererResult __ww_must_check object_instance_set_transform(ObjectInstance self, mat4 transform);
-void object_instance_destroy(ObjectInstance self);
+WwRendererResult __ww_must_check ww_object_instance_set_transform(WwObjectInstance self, mat4 transform);
+void ww_object_instance_destroy(WwObjectInstance self);

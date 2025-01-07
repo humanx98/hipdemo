@@ -3,74 +3,74 @@
 #include <ww/prim_types.h>
 #include <ww/defines.h>
 
-typedef enum ViewportResultCode {
-    VIEWPORT_SUCCESS = 0,
-    VIEWPORT_SUBOPTIMAL,
-    VIEWPORT_ERROR_INTERNAL,
-    VIEWPORT_ERROR_OUT_OF_DATE,
-} ViewportResultCode;
+typedef enum WwViewportResultCode {
+    WW_VIEWPORT_SUCCESS = 0,
+    WW_VIEWPORT_SUBOPTIMAL,
+    WW_VIEWPORT_ERROR_INTERNAL,
+    WW_VIEWPORT_ERROR_OUT_OF_DATE,
+} WwViewportResultCode;
 
-typedef struct ViewportResult {
+typedef struct WwViewportResult {
     b8 failed;
-    ViewportResultCode code;
-} ViewportResult;
+    WwViewportResultCode code;
+} WwViewportResult;
 
-typedef enum ViewportExternalHandleType {
-    VIEWPORT_EXTERNAL_HANDLE_WIN32 = 0,
-    VIEWPORT_EXTERNAL_HANDLE_FD,
-} ViewportExternalHandleType;
+typedef enum WwViewportExternalHandleType {
+    WW_VIEWPORT_EXTERNAL_HANDLE_WIN32 = 0,
+    WW_VIEWPORT_EXTERNAL_HANDLE_FD,
+} WwViewportExternalHandleType;
 
-typedef struct ViewportExternalHandle {
-    ViewportExternalHandleType type;
+typedef struct WwViewportExternalHandle {
+    WwViewportExternalHandleType type;
     union {
         void* win32;
         i32 fd;
     } handle;
-} ViewportExternalHandle;
+} WwViewportExternalHandle;
 
-typedef struct ViewportExternalSemaphores {
-    ViewportExternalHandle wait_for_signal_external_memory_from_viewport;
-    ViewportExternalHandle signal_external_memory_for_viewport;
-} ViewportExternalSemaphores;
+typedef struct WwViewportExternalSemaphores {
+    WwViewportExternalHandle wait_for_signal_external_memory_from_viewport;
+    WwViewportExternalHandle signal_external_memory_for_viewport;
+} WwViewportExternalSemaphores;
 
-WW_DEFINE_HANDLE(viewport_ptr);
-typedef ViewportResult __ww_must_check (*viewport_render_fn)(viewport_ptr ptr);
-typedef ViewportResult __ww_must_check (*viewport_wait_idle_fn)(viewport_ptr ptr);
-typedef void* __ww_must_check (*viewport_get_mapped_input_fn)(viewport_ptr ptr);
-typedef ViewportExternalHandle __ww_must_check (*viewport_get_external_memory_fn)(viewport_ptr ptr);
-typedef ViewportExternalSemaphores __ww_must_check (*viewport_get_external_semaphores_fn)(viewport_ptr ptr);
-typedef ViewportResult __ww_must_check (*viewport_set_resolution_fn)(viewport_ptr ptr, u32 width, u32 height);
-typedef void (*viewport_get_resolution_fn)(viewport_ptr ptr, u32* width, u32* height);
-typedef void (*viewport_destroy_fn)(viewport_ptr ptr);
+WW_DEFINE_HANDLE(ww_viewport_ptr);
+typedef WwViewportResult __ww_must_check (*ww_viewport_render_fn)(ww_viewport_ptr ptr);
+typedef WwViewportResult __ww_must_check (*ww_viewport_wait_idle_fn)(ww_viewport_ptr ptr);
+typedef void* __ww_must_check (*ww_viewport_get_mapped_input_fn)(ww_viewport_ptr ptr);
+typedef WwViewportExternalHandle __ww_must_check (*ww_viewport_get_external_memory_fn)(ww_viewport_ptr ptr);
+typedef WwViewportExternalSemaphores __ww_must_check (*ww_viewport_get_external_semaphores_fn)(ww_viewport_ptr ptr);
+typedef WwViewportResult __ww_must_check (*ww_viewport_set_resolution_fn)(ww_viewport_ptr ptr, u32 width, u32 height);
+typedef void (*ww_viewport_get_resolution_fn)(ww_viewport_ptr ptr, u32* width, u32* height);
+typedef void (*ww_viewport_destroy_fn)(ww_viewport_ptr ptr);
 
-typedef struct viewport_vtable {
-    viewport_render_fn render;
-    viewport_wait_idle_fn wait_idle;
-    viewport_get_mapped_input_fn get_mapped_input;
-    viewport_get_external_memory_fn get_external_memory;
-    viewport_get_external_semaphores_fn get_external_semaphores;
-    viewport_set_resolution_fn set_resolution;
-    viewport_get_resolution_fn get_resolution;
-    viewport_destroy_fn destroy;
-} viewport_vtable;
+typedef struct ww_viewport_vtable {
+    ww_viewport_render_fn render;
+    ww_viewport_wait_idle_fn wait_idle;
+    ww_viewport_get_mapped_input_fn get_mapped_input;
+    ww_viewport_get_external_memory_fn get_external_memory;
+    ww_viewport_get_external_semaphores_fn get_external_semaphores;
+    ww_viewport_set_resolution_fn set_resolution;
+    ww_viewport_get_resolution_fn get_resolution;
+    ww_viewport_destroy_fn destroy;
+} ww_viewport_vtable;
 
-typedef struct Viewport {
-    viewport_ptr ptr;
-    const viewport_vtable* vtable;
-} Viewport;
+typedef struct WwViewport {
+    ww_viewport_ptr ptr;
+    const ww_viewport_vtable* vtable;
+} WwViewport;
 
-ViewportResult __ww_must_check viewport_render(Viewport self);
-ViewportResult __ww_must_check viewport_wait_idle(Viewport self);
-void* __ww_must_check viewport_get_mapped_input(Viewport self);
-ViewportExternalHandle __ww_must_check viewport_get_external_memory(Viewport self);
-ViewportExternalSemaphores __ww_must_check viewport_get_external_semaphores(Viewport self);
-ViewportResult __ww_must_check viewport_set_resolution(Viewport self, u32 width, u32 height);
-void viewport_get_resolution(Viewport self, u32* width, u32* height);
-void viewport_destroy(Viewport self);
+WwViewportResult __ww_must_check ww_viewport_render(WwViewport self);
+WwViewportResult __ww_must_check ww_viewport_wait_idle(WwViewport self);
+void* __ww_must_check ww_viewport_get_mapped_input(WwViewport self);
+WwViewportExternalHandle __ww_must_check ww_viewport_get_external_memory(WwViewport self);
+WwViewportExternalSemaphores __ww_must_check ww_viewport_get_external_semaphores(WwViewport self);
+WwViewportResult __ww_must_check ww_viewport_set_resolution(WwViewport self, u32 width, u32 height);
+void ww_viewport_get_resolution(WwViewport self, u32* width, u32* height);
+void ww_viewport_destroy(WwViewport self);
 
-static inline ViewportResult __ww_must_check viewport_result(ViewportResultCode code) {
-    return (ViewportResult) {
-        .failed = code != VIEWPORT_SUCCESS,
+static inline WwViewportResult __ww_must_check ww_viewport_result(WwViewportResultCode code) {
+    return (WwViewportResult) {
+        .failed = code != WW_VIEWPORT_SUCCESS,
         .code = code,
     };
 }

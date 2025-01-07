@@ -27,10 +27,10 @@ typedef struct App {
     b8 memory_interop;
     b8 semaphores_interop;
     GLFWwindow* window;
-    Viewport viewport;
-    Renderer renderer;
-    Camera camera;
-    Scene scene;
+    WwViewport viewport;
+    WwRenderer renderer;
+    WwCamera camera;
+    WwScene scene;
     b8 test_attaching_objects;
     b8 test_detaching_objects;
     usize attached_objects_count;
@@ -43,8 +43,8 @@ typedef struct App {
         vec3 up;
         f32 speed;
     } camera_params;
-    WwDArray(TriangleMesh) triangle_meshes;
-    WwDArray(ObjectInstance) object_instances;
+    WwDArray(WwTriangleMesh) triangle_meshes;
+    WwDArray(WwObjectInstance) object_instances;
 } App;
 
 static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
@@ -121,8 +121,8 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
         .window_resized = true,
         .memory_interop = creation_properties.renderer_viewport_memory_interop,
         .semaphores_interop = creation_properties.renderer_viewport_semaphores_interop,
-        .triangle_meshes = ww_darray_init(creation_properties.allocator, TriangleMesh),
-        .object_instances = ww_darray_init(creation_properties.allocator, ObjectInstance),
+        .triangle_meshes = ww_darray_init(creation_properties.allocator, WwTriangleMesh),
+        .object_instances = ww_darray_init(creation_properties.allocator, WwObjectInstance),
         .scale = 1.0f,
     };
 
@@ -182,19 +182,19 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
         }
     }
 
-    if (renderer_create_scene(self->renderer, &self->scene).failed) {
+    if (ww_renderer_create_scene(self->renderer, &self->scene).failed) {
         goto failed;
     }
 
-    if (renderer_set_scene(self->renderer, self->scene.ptr).failed) {
+    if (ww_renderer_set_scene(self->renderer, self->scene.ptr).failed) {
         goto failed;
     }
 
-    if (renderer_create_camera(self->renderer, &self->camera).failed) {
+    if (ww_renderer_create_camera(self->renderer, &self->camera).failed) {
         goto failed;
     }
 
-    if (scene_set_camera(self->scene, self->camera.ptr).failed) {
+    if (ww_scene_set_camera(self->scene, self->camera.ptr).failed) {
         goto failed;
     }
 
@@ -215,29 +215,29 @@ void app_destroy(App* self) {
 
     if (self->scene.ptr) {
         for (usize i = 0; i < self->attached_objects_count; i++) {
-            RendererResult res = scene_detach_object_instance(self->scene, ww_darray_get(&self->object_instances, object_instance_ptr, i));
+            WwRendererResult res = ww_scene_detach_object_instance(self->scene, ww_darray_get(&self->object_instances, ww_object_instance_ptr, i));
         }
-        scene_destroy(self->scene);
+        ww_scene_destroy(self->scene);
     }
 
     if (self->camera.ptr) {
-        camera_destroy(self->camera);
+        ww_camera_destroy(self->camera);
     }
 
-    ww_darray_foreach_by_ref(&self->object_instances, ObjectInstance, oi)
-        object_instance_destroy(*oi);
-    ww_darray_foreach_by_ref(&self->triangle_meshes, TriangleMesh, tm)
-        triangle_mesh_destroy(*tm);
+    ww_darray_foreach_by_ref(&self->object_instances, WwObjectInstance, oi)
+        ww_object_instance_destroy(*oi);
+    ww_darray_foreach_by_ref(&self->triangle_meshes, WwTriangleMesh, tm)
+        ww_triangle_mesh_destroy(*tm);
 
     ww_darray_deinit(&self->object_instances);
     ww_darray_deinit(&self->triangle_meshes);
 
     if (self->renderer.ptr) {
-        renderer_destroy(self->renderer);
+        ww_renderer_destroy(self->renderer);
     }
 
     if (self->viewport.ptr) {
-        viewport_destroy(self->viewport);
+        ww_viewport_destroy(self->viewport);
     }
 
     glfwDestroyWindow(self->window);
@@ -255,7 +255,7 @@ AppResult app_run(App* self) {
     clock_t end_frame = clock();
     u32 frames = 0;
     const u32 render_iterations = 1;
-    ViewportResult viewport_result = {};
+    WwViewportResult viewport_result = {};
 
     while (!glfwWindowShouldClose(self->window)) {
         delta_time = end_frame - begin_frame;
@@ -280,14 +280,14 @@ AppResult app_run(App* self) {
             attach_detach_time = 0;
             if (self->test_attaching_objects && self->attached_objects_count < ww_darray_len(&self->object_instances)) {
                 scene_change = true;
-                if (scene_attach_object_instance(self->scene, ww_darray_get(&self->object_instances, object_instance_ptr, self->attached_objects_count++)).failed) {
+                if (ww_scene_attach_object_instance(self->scene, ww_darray_get(&self->object_instances, ww_object_instance_ptr, self->attached_objects_count++)).failed) {
                     goto failed;
                 }
             }
 
             if (self->test_detaching_objects && self->attached_objects_count > 1) {
                 scene_change = true;
-                if (scene_detach_object_instance(self->scene, ww_darray_get(&self->object_instances, object_instance_ptr, --self->attached_objects_count)).failed) {
+                if (ww_scene_detach_object_instance(self->scene, ww_darray_get(&self->object_instances, ww_object_instance_ptr, --self->attached_objects_count)).failed) {
                     goto failed;
                 }
             }
@@ -301,20 +301,20 @@ AppResult app_run(App* self) {
                 self->scale -= delta_time / (f32)CLOCKS_PER_SEC;
             }
             self->scale = WW_CLAMP(self->scale, 0.5f, 1.0f);
-            ww_darray_foreach_by_ref(&self->object_instances, ObjectInstance, oi) {
-                if (object_instance_set_transform(*oi, mat4_scale(self->scale, self->scale, self->scale)).failed) {
+            ww_darray_foreach_by_ref(&self->object_instances, WwObjectInstance, oi) {
+                if (ww_object_instance_set_transform(*oi, mat4_scale(self->scale, self->scale, self->scale)).failed) {
                     goto failed;
                 }
             }
         }
 
-        if (scene_change && viewport_wait_idle(self->viewport).failed) {
+        if (scene_change && ww_viewport_wait_idle(self->viewport).failed) {
             goto failed;
         }
 
         {
             glfwPollEvents();
-            if (viewport_result.code == VIEWPORT_ERROR_OUT_OF_DATE || viewport_result.code == VIEWPORT_SUBOPTIMAL || self->window_resized) {
+            if (viewport_result.code == WW_VIEWPORT_ERROR_OUT_OF_DATE || viewport_result.code == WW_VIEWPORT_SUBOPTIMAL || self->window_resized) {
                 self->window_resized = false;
                 if (!app_handle_resize(self)) {
                     goto failed;
@@ -327,31 +327,31 @@ AppResult app_run(App* self) {
                 goto failed;
             }
 
-            if (renderer_render(self->renderer).failed) {
+            if (ww_renderer_render(self->renderer).failed) {
                 goto failed;
             }
 
-            if (!self->memory_interop && renderer_copy_target_to(self->renderer, viewport_get_mapped_input(self->viewport)).failed) {
+            if (!self->memory_interop && ww_renderer_copy_target_to(self->renderer, ww_viewport_get_mapped_input(self->viewport)).failed) {
                 goto failed;
             }
 
-            if (!self->semaphores_interop && viewport_wait_idle(self->viewport).failed) {
+            if (!self->semaphores_interop && ww_viewport_wait_idle(self->viewport).failed) {
                 goto failed;
             }
 
-            viewport_result = viewport_render(self->viewport);
+            viewport_result = ww_viewport_render(self->viewport);
         }
         end_frame = clock();
     }
 
-    if (viewport_wait_idle(self->viewport).failed) {
+    if (ww_viewport_wait_idle(self->viewport).failed) {
         goto failed;
     }
 
     return APP_SUCCESS;
 failed:
     // ignore result
-    ViewportResult wait_res = viewport_wait_idle(self->viewport);
+    WwViewportResult wait_res = ww_viewport_wait_idle(self->viewport);
     return APP_FAILED;
 }
 
@@ -404,29 +404,29 @@ b8 app_load_scene(App* self, const char* file) {
         }
 
         WW_STATIC_ASSERT_EXPR(sizeof(mesh->mVertices[0]) == sizeof(vec3), "Check assimp vertices type");
-        TriangleMeshCreationProperties triangle_mesh_creation_properties = {
+        WwTriangleMeshCreationProperties triangle_mesh_creation_properties = {
             .triangle_count = mesh->mNumFaces,
             .triangle_indices = (u32*)ww_darray_ptr(&indices),
             .vertex_count = mesh->mNumVertices,
             .vertices = (vec3*)mesh->mVertices,
         };
 
-        TriangleMesh triangle_mesh = {};
-        if (renderer_create_triangle_mesh(self->renderer, triangle_mesh_creation_properties, &triangle_mesh).failed) {
+        WwTriangleMesh triangle_mesh = {};
+        if (ww_renderer_create_triangle_mesh(self->renderer, triangle_mesh_creation_properties, &triangle_mesh).failed) {
             goto failed_scene_import;
         }
 
         ww_darray_append_assume_capacity(&self->triangle_meshes, triangle_mesh);
         ww_darray_resize_assume_capacity(&indices, 0);
 
-        ObjectInstance object_instance = {};
-        if (renderer_create_object_instance(self->renderer, triangle_mesh.ptr, &object_instance).failed) {
+        WwObjectInstance object_instance = {};
+        if (ww_renderer_create_object_instance(self->renderer, triangle_mesh.ptr, &object_instance).failed) {
             goto failed_scene_import;
         }
 
         ww_darray_append_assume_capacity(&self->object_instances, object_instance);
 
-        if (scene_attach_object_instance(self->scene, object_instance.ptr).failed) {
+        if (ww_scene_attach_object_instance(self->scene, object_instance.ptr).failed) {
             goto failed_scene_import;
         }
 
@@ -448,11 +448,11 @@ b8 app_load_cornellplot(App* self) {
     self->camera_params.look_from = make_vec3(0.0f, 2.5f, 20.0f);
     self->camera_params.look_at = make_vec3(0.0f, 2.5f, 0.0);
     self->camera_params.up = make_vec3(0.0f, 1.0f, 0.0f);
-    if (camera_set_look_at(self->camera, self->camera_params.look_from, self->camera_params.look_at, self->camera_params.up).failed) {
+    if (ww_camera_set_look_at(self->camera, self->camera_params.look_from, self->camera_params.look_at, self->camera_params.up).failed) {
         return false;
     }
 
-    if (camera_set_focus_dist(self->camera, 10.0f).failed) {
+    if (ww_camera_set_focus_dist(self->camera, 10.0f).failed) {
         return false;
     }
     return app_load_scene(self, "meshes/cornellpot.obj");
@@ -463,11 +463,11 @@ b8 app_load_lucy(App* self) {
     self->camera_params.look_from = make_vec3(0.0f, 1600.0f, 1500.0f);
     self->camera_params.look_at = make_vec3(0.0f, 450.0f, -300.0);
     self->camera_params.up = make_vec3(0.0f, 1.0f, 0.0f);
-    if (camera_set_look_at(self->camera, self->camera_params.look_from, self->camera_params.look_at, self->camera_params.up).failed) {
+    if (ww_camera_set_look_at(self->camera, self->camera_params.look_from, self->camera_params.look_at, self->camera_params.up).failed) {
         return false;
     }
 
-    if (camera_set_focus_dist(self->camera, 10.0f).failed) {
+    if (ww_camera_set_focus_dist(self->camera, 10.0f).failed) {
         return false;
     }
     return app_load_scene(self, "meshes/lucy.obj");
@@ -485,25 +485,25 @@ b8 app_handle_resize(App* self) {
     u32 width = (u32)i32_width;
     u32 height = (u32)i32_height;
     WW_LOG_DEBUG("[App] viewport resize (%d, %d)\n", width, height);
-    if (viewport_set_resolution(self->viewport, width, height).failed) {
+    if (ww_viewport_set_resolution(self->viewport, width, height).failed) {
         return false;
     }
 
-    viewport_get_resolution(self->viewport, &width, &height);
+    ww_viewport_get_resolution(self->viewport, &width, &height);
     if (self->memory_interop) {
         WW_LOG_DEBUG("[App] renderer resize with interop (%d, %d)\n", width, height);
-        ViewportExternalHandle external_memory = viewport_get_external_memory(self->viewport);
-        if (renderer_set_target_external_memory(self->renderer, external_memory, width, height).failed) {
+        WwViewportExternalHandle external_memory = ww_viewport_get_external_memory(self->viewport);
+        if (ww_renderer_set_target_external_memory(self->renderer, external_memory, width, height).failed) {
             return false;
         }
     } else {
         WW_LOG_DEBUG("[App] renderer resize (%d, %d)\n", width, height);
-        if (renderer_set_target_resolution(self->renderer, width, height).failed) {
+        if (ww_renderer_set_target_resolution(self->renderer, width, height).failed) {
             return false;
         }
     }
 
-    if (camera_set_aspect_ratio(self->camera, (f32)width / height).failed) {
+    if (ww_camera_set_aspect_ratio(self->camera, (f32)width / height).failed) {
         return false;
     }
 
@@ -556,7 +556,7 @@ b8 app_handle_keys(App* self, f32 delta_time_in_seconds) {
         self->camera_params.look_from = eye;
         self->camera_params.look_at = target;
         self->camera_params.up = up;
-        if (camera_set_look_at(self->camera, eye, target, up).failed) {
+        if (ww_camera_set_look_at(self->camera, eye, target, up).failed) {
             return false;
         }
     }

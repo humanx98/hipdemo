@@ -9,4 +9,4 @@ typedef struct HipCreationProperties {
     u32 device_index;
 } HipCreationProperties;
 
-RendererResult __ww_must_check hip_renderer_create(HipCreationProperties creation_properties, Renderer* renderer);
+WwRendererResult __ww_must_check hip_renderer_create(HipCreationProperties creation_properties, WwRenderer* renderer);

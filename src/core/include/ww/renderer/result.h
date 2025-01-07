@@ -2,20 +2,20 @@
 
 #include <ww/defines.h>
 
-typedef enum RendererResultCode {
-    RENDERER_SUCCESS = 0,
-    RENDERER_ERROR_INTERNAL,
-    RENDERER_ERROR_OUT_OF_HOST_MEMORY,
-} RendererResultCode;
+typedef enum WwRendererResultCode {
+    WW_RENDERER_SUCCESS = 0,
+    WW_RENDERER_ERROR_INTERNAL,
+    WW_RENDERER_ERROR_OUT_OF_HOST_MEMORY,
+} WwRendererResultCode;
 
-typedef struct RendererResult {
+typedef struct WwRendererResult {
     b8 failed;
-    RendererResultCode code;
-} RendererResult;
+    WwRendererResultCode code;
+} WwRendererResult;
 
-static inline RendererResult __ww_must_check renderer_result(RendererResultCode code) {
-    return (RendererResult) {
-        .failed = code != RENDERER_SUCCESS,
+static inline WwRendererResult __ww_must_check ww_renderer_result(WwRendererResultCode code) {
+    return (WwRendererResult) {
+        .failed = code != WW_RENDERER_SUCCESS,
         .code = code,
     };
 }
