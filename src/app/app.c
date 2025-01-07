@@ -164,6 +164,9 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
                 .device_index = creation_properties.device_index,
                 .external_semaphores = creation_properties.renderer_viewport_semaphores_interop,
             };
+            if (renderer_creation_properties.external_semaphores) {
+                renderer_creation_properties.viewport_external_memory_semaphores = ww_viewport_get_external_semaphores(self->viewport);
+            }
             if (hiprt_renderer_create(renderer_creation_properties, &self->renderer).failed) {
                 goto failed;
             }
