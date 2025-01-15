@@ -1,20 +1,20 @@
 #include "ww/math.h"
-#include <ww/renderer/camera_def_impl.h>
+#include <ww/renderer3d/camera_def_impl.h>
 
 static void ww_camera_def_impl_init(ww_camera_ptr self, WwAllocator allocator, vec3 look_from, vec3 look_at, vec3 vup, f32 aspect_ratio, f32 vfov, f32 aperture, f32 focus_dist);
-static WwRendererResult __ww_must_check ww_camera_def_impl_set_aperture(ww_camera_ptr self, f32 aperture);
-static WwRendererResult __ww_must_check ww_camera_def_impl_set_aspect_ratio(ww_camera_ptr self, f32 aspect_ratio);
-static WwRendererResult __ww_must_check ww_camera_def_impl_set_focus_dist(ww_camera_ptr self, f32 focus_dist);
-static WwRendererResult __ww_must_check ww_camera_def_impl_set_vfov(ww_camera_ptr self, f32 vfov);
-static WwRendererResult __ww_must_check ww_camera_def_impl_set_look_at(ww_camera_ptr self, vec3 position, vec3 at, vec3 up);
-static WwRendererResult __ww_must_check ww_camera_def_impl_set_look_at(ww_camera_ptr self, vec3 position, vec3 at, vec3 up);
+static WwRenderer3DResult __ww_must_check ww_camera_def_impl_set_aperture(ww_camera_ptr self, f32 aperture);
+static WwRenderer3DResult __ww_must_check ww_camera_def_impl_set_aspect_ratio(ww_camera_ptr self, f32 aspect_ratio);
+static WwRenderer3DResult __ww_must_check ww_camera_def_impl_set_focus_dist(ww_camera_ptr self, f32 focus_dist);
+static WwRenderer3DResult __ww_must_check ww_camera_def_impl_set_vfov(ww_camera_ptr self, f32 vfov);
+static WwRenderer3DResult __ww_must_check ww_camera_def_impl_set_look_at(ww_camera_ptr self, vec3 position, vec3 at, vec3 up);
+static WwRenderer3DResult __ww_must_check ww_camera_def_impl_set_look_at(ww_camera_ptr self, vec3 position, vec3 at, vec3 up);
 static void ww_camera_def_impl_destroy(ww_camera_ptr self);
 
-WwRendererResult ww_camera_def_impl_create(WwAllocator allocator, WwCamera* camera) {
+WwRenderer3DResult ww_camera_def_impl_create(WwAllocator allocator, WwCamera* camera) {
     assert(camera);
     ww_auto_type alloc_res = ww_allocator_alloc_type(allocator, ww_camera_ptr_impl);
     if (alloc_res.failed) {
-        return ww_renderer_result(WW_RENDERER_ERROR_OUT_OF_HOST_MEMORY);
+        return ww_renderer3d_result(WW_RENDERER3D_ERROR_OUT_OF_HOST_MEMORY);
     }
 
     ww_camera_ptr self = alloc_res.ptr;
@@ -42,7 +42,7 @@ WwRendererResult ww_camera_def_impl_create(WwAllocator allocator, WwCamera* came
         .vtable = &vtable,
     };
 
-    return ww_renderer_result(WW_RENDERER_SUCCESS);
+    return ww_renderer3d_result(WW_RENDERER3D_SUCCESS);
 }
 
 void ww_camera_def_impl_init(ww_camera_ptr self, WwAllocator allocator, vec3 look_from, vec3 look_at, vec3 vup, f32 aspect_ratio, f32 vfov, f32 aperture, f32 focus_dist) {
@@ -89,32 +89,32 @@ void ww_camera_def_impl_destroy(ww_camera_ptr self) {
     ww_allocator_free(self->allocator, self);
 }
 
-WwRendererResult ww_camera_def_impl_set_aperture(ww_camera_ptr self, f32 aperture) {
+WwRenderer3DResult ww_camera_def_impl_set_aperture(ww_camera_ptr self, f32 aperture) {
     assert(self);
     ww_camera_def_impl_init(self, self->allocator, self->look_from, self->look_at, self->vup, self->aspect_ratio, self->vfov, aperture, self->focus_dist);
-    return ww_renderer_result(WW_RENDERER_SUCCESS);
+    return ww_renderer3d_result(WW_RENDERER3D_SUCCESS);
 };
 
-WwRendererResult ww_camera_def_impl_set_aspect_ratio(ww_camera_ptr self, f32 aspect_ratio) {
+WwRenderer3DResult ww_camera_def_impl_set_aspect_ratio(ww_camera_ptr self, f32 aspect_ratio) {
     assert(self);
     ww_camera_def_impl_init(self, self->allocator, self->look_from, self->look_at, self->vup, aspect_ratio, self->vfov, 2.0f * self->lens_radius, self->focus_dist);
-    return ww_renderer_result(WW_RENDERER_SUCCESS);
+    return ww_renderer3d_result(WW_RENDERER3D_SUCCESS);
 }
 
-WwRendererResult ww_camera_def_impl_set_focus_dist(ww_camera_ptr self, f32 focus_dist) {
+WwRenderer3DResult ww_camera_def_impl_set_focus_dist(ww_camera_ptr self, f32 focus_dist) {
     assert(self);
     ww_camera_def_impl_init(self, self->allocator, self->look_from, self->look_at, self->vup, self->aspect_ratio, self->vfov, 2.0f * self->lens_radius, focus_dist);
-    return ww_renderer_result(WW_RENDERER_SUCCESS);
+    return ww_renderer3d_result(WW_RENDERER3D_SUCCESS);
 }
 
-WwRendererResult ww_camera_def_impl_set_vfov(ww_camera_ptr self, f32 vfov) {
+WwRenderer3DResult ww_camera_def_impl_set_vfov(ww_camera_ptr self, f32 vfov) {
     assert(self);
     ww_camera_def_impl_init(self, self->allocator, self->look_from, self->look_at, self->vup, self->aspect_ratio, vfov, 2.0f * self->lens_radius, self->focus_dist);
-    return ww_renderer_result(WW_RENDERER_SUCCESS);
+    return ww_renderer3d_result(WW_RENDERER3D_SUCCESS);
 }
 
-WwRendererResult ww_camera_def_impl_set_look_at(ww_camera_ptr self, vec3 position, vec3 at, vec3 up) {
+WwRenderer3DResult ww_camera_def_impl_set_look_at(ww_camera_ptr self, vec3 position, vec3 at, vec3 up) {
     assert(self);
     ww_camera_def_impl_init(self, self->allocator, position, at, up, self->aspect_ratio, self->vfov, 2.0f * self->lens_radius, self->focus_dist);
-    return ww_renderer_result(WW_RENDERER_SUCCESS);
+    return ww_renderer3d_result(WW_RENDERER3D_SUCCESS);
 }

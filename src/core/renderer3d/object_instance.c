@@ -1,5 +1,5 @@
 
-#include <ww/renderer/object_instance.h>
+#include <ww/renderer3d/object_instance.h>
 #include <assert.h>
 
 static inline void assert_object_instance(WwObjectInstance oi) {
@@ -9,7 +9,7 @@ static inline void assert_object_instance(WwObjectInstance oi) {
     assert(oi.vtable->destroy);
 }
 
-WwRendererResult ww_object_instance_set_transform(WwObjectInstance self, mat4 transform) {
+WwRenderer3DResult ww_object_instance_set_transform(WwObjectInstance self, mat4 transform) {
     assert_object_instance(self);
     return self.vtable->set_transform(self.ptr, transform);
 }

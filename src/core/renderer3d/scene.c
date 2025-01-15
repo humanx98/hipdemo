@@ -1,4 +1,4 @@
-#include <ww/renderer/scene.h>
+#include <ww/renderer3d/scene.h>
 #include <assert.h>
 
 static inline void assert_scene(WwScene s) {
@@ -10,17 +10,17 @@ static inline void assert_scene(WwScene s) {
     assert(s.vtable->destroy);
 }
 
-WwRendererResult ww_scene_set_camera(WwScene self, ww_camera_ptr camera) {
+WwRenderer3DResult ww_scene_set_camera(WwScene self, ww_camera_ptr camera) {
     assert_scene(self);
     return self.vtable->set_camera(self.ptr, camera);
 }
 
-WwRendererResult ww_scene_attach_object_instance(WwScene self, ww_object_instance_ptr object_instance) {
+WwRenderer3DResult ww_scene_attach_object_instance(WwScene self, ww_object_instance_ptr object_instance) {
     assert_scene(self);
     return self.vtable->attach_object_instance(self.ptr, object_instance);
 }
 
-WwRendererResult ww_scene_detach_object_instance(WwScene self, ww_object_instance_ptr object_instance) {
+WwRenderer3DResult ww_scene_detach_object_instance(WwScene self, ww_object_instance_ptr object_instance) {
     assert_scene(self);
     return self.vtable->detach_object_instance(self.ptr, object_instance);
 }

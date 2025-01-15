@@ -11,8 +11,8 @@
 
 extern "C" {
 #include <ww/hip/common.h>
-#include <ww/renderer/renderer.h>
-#include <ww/renderer/camera_def_impl.h>
+#include <ww/renderer3d/renderer3d.h>
+#include <ww/renderer3d/camera_def_impl.h>
 #include <ww/collections/darray.h>
 #include <ww/file.h>
 #include <ww/log.h>
@@ -20,7 +20,7 @@ extern "C" {
 #include <ww/math.h>
 }
 
-typedef struct ww_renderer_ptr_impl {
+typedef struct ww_renderer3d_ptr_impl {
     u32 width;
     u32 height;
     HipRTRenderContext context;
@@ -36,37 +36,37 @@ typedef struct ww_renderer_ptr_impl {
     hipFunction_t kernel_func;
     hipStream_t stream;
     ww_scene_ptr scene;
-} ww_renderer_ptr_impl;
+} ww_renderer3d_ptr_impl;
 
-static void hiprt_renderer_destroy(ww_renderer_ptr self);
-static WwRendererResult __ww_must_check hiprt_renderer_set_target_resolution(ww_renderer_ptr self, u32 width, u32 height);
-static WwRendererResult __ww_must_check hiprt_renderer_set_external_memory(ww_renderer_ptr self, WwViewportExternalHandle external_memory, u32 width, u32 height);
-static WwRendererResult __ww_must_check hiprt_renderer_render(ww_renderer_ptr self);
-static WwRendererResult __ww_must_check hiprt_renderer_copy_target_to(ww_renderer_ptr self, void* dst);
-static WwRendererResult __ww_must_check hiprt_renderer_set_scene(ww_renderer_ptr self, ww_scene_ptr scene);
-static WwRendererResult __ww_must_check hiprt_renderer_create_scene(ww_renderer_ptr self, WwScene* scene);
-static WwRendererResult __ww_must_check hiprt_renderer_create_camera(ww_renderer_ptr self, WwCamera* camera);
-static WwRendererResult __ww_must_check hiprt_renderer_create_object_instance(ww_renderer_ptr self, const ww_triangle_mesh_ptr triangle_mesh, WwObjectInstance* object_instance);
-static WwRendererResult __ww_must_check hiprt_renderer_create_triangle_mesh(ww_renderer_ptr self, WwTriangleMeshCreationProperties creation_properties, WwTriangleMesh* triangle_mesh);
-static WwRendererResult __ww_must_check hiprt_renderer_init(ww_renderer_ptr self, HipRTCreationProperties creation_properties);
-static WwRendererResult __ww_must_check hiprt_renderer_free_target(ww_renderer_ptr self);
+static void hiprt_renderer_destroy(ww_renderer3d_ptr self);
+static WwRenderer3DResult __ww_must_check hiprt_renderer_set_target_resolution(ww_renderer3d_ptr self, u32 width, u32 height);
+static WwRenderer3DResult __ww_must_check hiprt_renderer_set_external_memory(ww_renderer3d_ptr self, WwViewportExternalHandle external_memory, u32 width, u32 height);
+static WwRenderer3DResult __ww_must_check hiprt_renderer_render(ww_renderer3d_ptr self);
+static WwRenderer3DResult __ww_must_check hiprt_renderer_copy_target_to(ww_renderer3d_ptr self, void* dst);
+static WwRenderer3DResult __ww_must_check hiprt_renderer_set_scene(ww_renderer3d_ptr self, ww_scene_ptr scene);
+static WwRenderer3DResult __ww_must_check hiprt_renderer_create_scene(ww_renderer3d_ptr self, WwScene* scene);
+static WwRenderer3DResult __ww_must_check hiprt_renderer_create_camera(ww_renderer3d_ptr self, WwCamera* camera);
+static WwRenderer3DResult __ww_must_check hiprt_renderer_create_object_instance(ww_renderer3d_ptr self, const ww_triangle_mesh_ptr triangle_mesh, WwObjectInstance* object_instance);
+static WwRenderer3DResult __ww_must_check hiprt_renderer_create_triangle_mesh(ww_renderer3d_ptr self, WwTriangleMeshCreationProperties creation_properties, WwTriangleMesh* triangle_mesh);
+static WwRenderer3DResult __ww_must_check hiprt_renderer_init(ww_renderer3d_ptr self, HipRTCreationProperties creation_properties);
+static WwRenderer3DResult __ww_must_check hiprt_renderer_free_target(ww_renderer3d_ptr self);
 
-WwRendererResult hiprt_renderer_create(HipRTCreationProperties creation_properties, WwRenderer* renderer) {
+WwRenderer3DResult hiprt_renderer_create(HipRTCreationProperties creation_properties, WwRenderer3D* renderer) {
     assert(renderer);
 
-    ww_auto_type alloc_result = ww_allocator_alloc_type(creation_properties.allocator, ww_renderer_ptr_impl);
+    ww_auto_type alloc_result = ww_allocator_alloc_type(creation_properties.allocator, ww_renderer3d_ptr_impl);
     if (alloc_result.failed) {
-        return ww_renderer_result(WW_RENDERER_ERROR_OUT_OF_HOST_MEMORY);
+        return ww_renderer3d_result(WW_RENDERER3D_ERROR_OUT_OF_HOST_MEMORY);
     }
 
-    ww_renderer_ptr self = alloc_result.ptr;
-    WwRendererResult res = hiprt_renderer_init(self, creation_properties);
+    ww_renderer3d_ptr self = alloc_result.ptr;
+    WwRenderer3DResult res = hiprt_renderer_init(self, creation_properties);
     if (res.failed) {
         hiprt_renderer_destroy(self);
         return res;
     }
 
-    static const ww_renderer_vtable vtable = {
+    static const ww_renderer3d_vtable vtable = {
         .set_target_resolution = hiprt_renderer_set_target_resolution,
         .set_target_external_memory = hiprt_renderer_set_external_memory,
         .render = hiprt_renderer_render,
@@ -78,21 +78,21 @@ WwRendererResult hiprt_renderer_create(HipRTCreationProperties creation_properti
         .create_triangle_mesh = hiprt_renderer_create_triangle_mesh,
         .destroy = hiprt_renderer_destroy,
     };
-    *renderer = (WwRenderer){
+    *renderer = (WwRenderer3D){
         .ptr = self,
         .vtable = &vtable,
     };
     return res;
 }
 
-WwRendererResult hiprt_renderer_init(ww_renderer_ptr self, HipRTCreationProperties creation_properties) {
-    *self = (ww_renderer_ptr_impl){
+WwRenderer3DResult hiprt_renderer_init(ww_renderer3d_ptr self, HipRTCreationProperties creation_properties) {
+    *self = (ww_renderer3d_ptr_impl){
         .context = {
             .allocator = creation_properties.allocator,
         },
     };
 
-    WwRendererResult res = HIP_CHECK(hipInit(0));
+    WwRenderer3DResult res = HIP_CHECK(hipInit(0));
     if (res.failed) {
         return res;
     }
@@ -150,9 +150,9 @@ WwRendererResult hiprt_renderer_init(ww_renderer_ptr self, HipRTCreationProperti
     return HIP_CHECK(hipStreamCreateWithFlags(&self->stream, hipStreamNonBlocking));
 }
 
-void hiprt_renderer_destroy(ww_renderer_ptr self) {
+void hiprt_renderer_destroy(ww_renderer3d_ptr self) {
     assert(self);
-    WwRendererResult res = hiprt_renderer_free_target(self);
+    WwRenderer3DResult res = hiprt_renderer_free_target(self);
 
     if (self->stream) {
         res = HIP_CHECK(hipStreamSynchronize(self->stream));
@@ -178,10 +178,10 @@ void hiprt_renderer_destroy(ww_renderer_ptr self) {
     ww_allocator_free(self->context.allocator, self);
 }
 
-WwRendererResult hiprt_renderer_set_target_resolution(ww_renderer_ptr self, u32 width, u32 height) {
+WwRenderer3DResult hiprt_renderer_set_target_resolution(ww_renderer3d_ptr self, u32 width, u32 height) {
     assert(self);
 
-    WwRendererResult res = HIP_CHECK(hipStreamSynchronize(self->stream));
+    WwRenderer3DResult res = HIP_CHECK(hipStreamSynchronize(self->stream));
     if (res.failed) {
         return res;
     }
@@ -197,10 +197,10 @@ WwRendererResult hiprt_renderer_set_target_resolution(ww_renderer_ptr self, u32 
     return res;
 }
 
-WwRendererResult hiprt_renderer_set_external_memory(ww_renderer_ptr self, WwViewportExternalHandle external_memory, u32 width, u32 height) {
+WwRenderer3DResult hiprt_renderer_set_external_memory(ww_renderer3d_ptr self, WwViewportExternalHandle external_memory, u32 width, u32 height) {
     assert(self);
 
-    WwRendererResult res = HIP_CHECK(hipStreamSynchronize(self->stream));
+    WwRenderer3DResult res = HIP_CHECK(hipStreamSynchronize(self->stream));
     if (res.failed) {
         return res;
     }
@@ -223,13 +223,13 @@ WwRendererResult hiprt_renderer_set_external_memory(ww_renderer_ptr self, WwView
     return res;
 }
 
-WwRendererResult hiprt_renderer_render(ww_renderer_ptr self) {
+WwRenderer3DResult hiprt_renderer_render(ww_renderer3d_ptr self) {
     assert(self);
     assert(self->pixels.ptr);
     assert(self->scene);
 
     // scene creation
-    WwRendererResult res;
+    WwRenderer3DResult res;
     if (self->scene->rebuild && (res = hiprt_scene_rebuild(self->scene)).failed) {
         return res;
     }
@@ -307,10 +307,10 @@ WwRendererResult hiprt_renderer_render(ww_renderer_ptr self) {
     }
 }
 
-WwRendererResult hiprt_renderer_copy_target_to(ww_renderer_ptr self, void *dst) {
+WwRenderer3DResult hiprt_renderer_copy_target_to(ww_renderer3d_ptr self, void *dst) {
     assert(self);
     assert(!self->pixels.external_memory);
-    WwRendererResult res = HIP_CHECK(hipMemcpyDtoHAsync(dst, self->pixels.ptr, self->width * self->height * 4 * sizeof(f32), self->stream));
+    WwRenderer3DResult res = HIP_CHECK(hipMemcpyDtoHAsync(dst, self->pixels.ptr, self->width * self->height * 4 * sizeof(f32), self->stream));
     if (res.failed) {
         return res;
     }
@@ -318,34 +318,34 @@ WwRendererResult hiprt_renderer_copy_target_to(ww_renderer_ptr self, void *dst) 
     return HIP_CHECK(hipStreamSynchronize(self->stream));
 }
 
-WwRendererResult hiprt_renderer_set_scene(ww_renderer_ptr self, ww_scene_ptr scene) {
+WwRenderer3DResult hiprt_renderer_set_scene(ww_renderer3d_ptr self, ww_scene_ptr scene) {
     assert(self);
     self->scene = scene;
-    return ww_renderer_result(WW_RENDERER_SUCCESS);
+    return ww_renderer3d_result(WW_RENDERER3D_SUCCESS);
 }
 
-WwRendererResult hiprt_renderer_create_scene(ww_renderer_ptr self, WwScene* scene) {
+WwRenderer3DResult hiprt_renderer_create_scene(ww_renderer3d_ptr self, WwScene* scene) {
     assert(self);
     return hiprt_scene_create(self->context, scene);
 }
 
-WwRendererResult hiprt_renderer_create_camera(ww_renderer_ptr self, WwCamera* camera) {
+WwRenderer3DResult hiprt_renderer_create_camera(ww_renderer3d_ptr self, WwCamera* camera) {
     assert(self);
     return ww_camera_def_impl_create(self->context.allocator, camera);
 }
 
-WwRendererResult hiprt_renderer_create_object_instance(ww_renderer_ptr self, const ww_triangle_mesh_ptr triangle_mesh, WwObjectInstance* object_instance) {
+WwRenderer3DResult hiprt_renderer_create_object_instance(ww_renderer3d_ptr self, const ww_triangle_mesh_ptr triangle_mesh, WwObjectInstance* object_instance) {
     assert(self);
     return hiprt_object_instance_create(self->context, triangle_mesh, object_instance);
 }
 
-WwRendererResult hiprt_renderer_create_triangle_mesh(ww_renderer_ptr self, WwTriangleMeshCreationProperties creation_properties, WwTriangleMesh* triangle_mesh) {
+WwRenderer3DResult hiprt_renderer_create_triangle_mesh(ww_renderer3d_ptr self, WwTriangleMeshCreationProperties creation_properties, WwTriangleMesh* triangle_mesh) {
     assert(self);
     return hiprt_triangle_mesh_create(self->context, creation_properties, triangle_mesh);
 }
 
-WwRendererResult hiprt_renderer_free_target(ww_renderer_ptr self) {
-    WwRendererResult res = ww_renderer_result(WW_RENDERER_SUCCESS);
+WwRenderer3DResult hiprt_renderer_free_target(ww_renderer3d_ptr self) {
+    WwRenderer3DResult res = ww_renderer3d_result(WW_RENDERER3D_SUCCESS);
     if (self->pixels.external_memory) {
         res = HIP_CHECK(hipDestroyExternalMemory(self->pixels.external_memory));
     } else if (self->pixels.ptr) {

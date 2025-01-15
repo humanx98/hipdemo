@@ -4,7 +4,7 @@
 
 extern "C" {
 #include <ww/collections/darray.h>
-#include <ww/renderer/scene.h>
+#include <ww/renderer3d/scene.h>
 }
 
 typedef struct ww_scene_ptr_impl {
@@ -20,5 +20,5 @@ typedef struct ww_scene_ptr_impl {
     WwDArray(ww_object_instance_ptr) attached_object_instances;
 } ww_scene_ptr_impl;
 
-WwRendererResult __ww_must_check hiprt_scene_create(HipRTRenderContext context, WwScene* scene);
-WwRendererResult __ww_must_check hiprt_scene_rebuild(ww_scene_ptr self);
+WwRenderer3DResult __ww_must_check hiprt_scene_create(HipRTRenderContext context, WwScene* scene);
+WwRenderer3DResult __ww_must_check hiprt_scene_rebuild(ww_scene_ptr self);

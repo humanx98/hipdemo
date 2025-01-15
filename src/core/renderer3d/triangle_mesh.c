@@ -1,4 +1,4 @@
-#include <ww/renderer/triangle_mesh.h>
+#include <ww/renderer3d/triangle_mesh.h>
 #include <assert.h>
 
 static inline void assert_triangle_mesh(WwTriangleMesh tm) {

@@ -3,7 +3,7 @@
 #include "hiprt_common.h"
 
 extern "C" {
-#include <ww/renderer/triangle_mesh.h>
+#include <ww/renderer3d/triangle_mesh.h>
 }
 
 typedef struct ww_triangle_mesh_ptr_impl {
@@ -13,4 +13,4 @@ typedef struct ww_triangle_mesh_ptr_impl {
     hiprtGeometry geometry;
 } ww_triangle_mesh_ptr_impl;
 
-WwRendererResult __ww_must_check hiprt_triangle_mesh_create(HipRTRenderContext context, WwTriangleMeshCreationProperties creation_properties, WwTriangleMesh* triangle_mesh);
+WwRenderer3DResult __ww_must_check hiprt_triangle_mesh_create(HipRTRenderContext context, WwTriangleMeshCreationProperties creation_properties, WwTriangleMesh* triangle_mesh);

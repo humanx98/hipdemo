@@ -6,7 +6,7 @@ extern "C" {
 
 #include <ww/defines.h>
 #include <ww/allocators/allocator.h>
-#include <ww/renderer/renderer.h>
+#include <ww/renderer3d/renderer3d.h>
 #include <ww/viewport.h>
 
 typedef struct HipRTCreationProperties {
@@ -16,7 +16,7 @@ typedef struct HipRTCreationProperties {
     WwViewportExternalSemaphore viewport_external_memory_semaphore;
 } HipRTCreationProperties;
 
-WwRendererResult __ww_must_check hiprt_renderer_create(HipRTCreationProperties creation_properties, WwRenderer* renderer);
+WwRenderer3DResult __ww_must_check hiprt_renderer_create(HipRTCreationProperties creation_properties, WwRenderer3D* renderer);
 
 #ifdef __cplusplus
 }

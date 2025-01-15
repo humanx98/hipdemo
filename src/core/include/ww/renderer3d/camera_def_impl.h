@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ww/renderer/camera.h>
+#include <ww/renderer3d/camera.h>
 #include <ww/allocators/allocator.h>
 
 typedef struct ww_camera_ptr_impl {
@@ -22,4 +22,4 @@ typedef struct ww_camera_ptr_impl {
     vec3 vup;
 } ww_camera_ptr_impl;
 
-WwRendererResult __ww_must_check ww_camera_def_impl_create(WwAllocator allocator, WwCamera* camera);
+WwRenderer3DResult __ww_must_check ww_camera_def_impl_create(WwAllocator allocator, WwCamera* camera);

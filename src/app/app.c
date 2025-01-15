@@ -1,7 +1,7 @@
 #include "app.h"
 #include <ww/collections/darray.h>
 #include <ww/math.h>
-#include <ww/renderer/renderer.h>
+#include <ww/renderer3d/renderer3d.h>
 #include <ww/viewport.h>
 #include <ww/exit.h>
 #include <stdlib.h>
@@ -28,7 +28,7 @@ typedef struct App {
     b8 semaphore_interop;
     GLFWwindow* window;
     WwViewport viewport;
-    WwRenderer renderer;
+    WwRenderer3D renderer;
     WwCamera camera;
     WwScene scene;
     b8 test_attaching_objects;
@@ -185,15 +185,15 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
         }
     }
 
-    if (ww_renderer_create_scene(self->renderer, &self->scene).failed) {
+    if (ww_renderer3d_create_scene(self->renderer, &self->scene).failed) {
         goto failed;
     }
 
-    if (ww_renderer_set_scene(self->renderer, self->scene.ptr).failed) {
+    if (ww_renderer3d_set_scene(self->renderer, self->scene.ptr).failed) {
         goto failed;
     }
 
-    if (ww_renderer_create_camera(self->renderer, &self->camera).failed) {
+    if (ww_renderer3d_create_camera(self->renderer, &self->camera).failed) {
         goto failed;
     }
 
@@ -218,7 +218,7 @@ void app_destroy(App* self) {
 
     if (self->scene.ptr) {
         for (usize i = 0; i < self->attached_objects_count; i++) {
-            WwRendererResult res = ww_scene_detach_object_instance(self->scene, ww_darray_get(&self->object_instances, ww_object_instance_ptr, i));
+            WwRenderer3DResult res = ww_scene_detach_object_instance(self->scene, ww_darray_get(&self->object_instances, ww_object_instance_ptr, i));
         }
         ww_scene_destroy(self->scene);
     }
@@ -236,7 +236,7 @@ void app_destroy(App* self) {
     ww_darray_deinit(&self->triangle_meshes);
 
     if (self->renderer.ptr) {
-        ww_renderer_destroy(self->renderer);
+        ww_renderer3d_destroy(self->renderer);
     }
 
     if (self->viewport.ptr) {
@@ -330,11 +330,11 @@ AppResult app_run(App* self) {
                 goto failed;
             }
 
-            if (ww_renderer_render(self->renderer).failed) {
+            if (ww_renderer3d_render(self->renderer).failed) {
                 goto failed;
             }
 
-            if (!self->memory_interop && ww_renderer_copy_target_to(self->renderer, ww_viewport_get_mapped_input(self->viewport)).failed) {
+            if (!self->memory_interop && ww_renderer3d_copy_target_to(self->renderer, ww_viewport_get_mapped_input(self->viewport)).failed) {
                 goto failed;
             }
 
@@ -415,7 +415,7 @@ b8 app_load_scene(App* self, const char* file) {
         };
 
         WwTriangleMesh triangle_mesh = {};
-        if (ww_renderer_create_triangle_mesh(self->renderer, triangle_mesh_creation_properties, &triangle_mesh).failed) {
+        if (ww_renderer3d_create_triangle_mesh(self->renderer, triangle_mesh_creation_properties, &triangle_mesh).failed) {
             goto failed_scene_import;
         }
 
@@ -423,7 +423,7 @@ b8 app_load_scene(App* self, const char* file) {
         ww_darray_resize_assume_capacity(&indices, 0);
 
         WwObjectInstance object_instance = {};
-        if (ww_renderer_create_object_instance(self->renderer, triangle_mesh.ptr, &object_instance).failed) {
+        if (ww_renderer3d_create_object_instance(self->renderer, triangle_mesh.ptr, &object_instance).failed) {
             goto failed_scene_import;
         }
 
@@ -496,12 +496,12 @@ b8 app_handle_resize(App* self) {
     if (self->memory_interop) {
         WW_LOG_DEBUG("[App] renderer resize with interop (%d, %d)\n", width, height);
         WwViewportExternalHandle external_memory = ww_viewport_get_external_memory(self->viewport);
-        if (ww_renderer_set_target_external_memory(self->renderer, external_memory, width, height).failed) {
+        if (ww_renderer3d_set_target_external_memory(self->renderer, external_memory, width, height).failed) {
             return false;
         }
     } else {
         WW_LOG_DEBUG("[App] renderer resize (%d, %d)\n", width, height);
-        if (ww_renderer_set_target_resolution(self->renderer, width, height).failed) {
+        if (ww_renderer3d_set_target_resolution(self->renderer, width, height).failed) {
             return false;
         }
     }

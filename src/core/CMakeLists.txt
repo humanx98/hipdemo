@@ -19,21 +19,21 @@ set(COLLECTIONS_SOURCES
 )
 
 set(RENDERER_HEADERS
-    include/ww/renderer/camera_def_impl.h
-    include/ww/renderer/camera.h
-    include/ww/renderer/object_instance.h
-    include/ww/renderer/renderer.h
-    include/ww/renderer/result.h
-    include/ww/renderer/scene.h
-    include/ww/renderer/triangle_mesh.h
+    include/ww/renderer3d/camera_def_impl.h
+    include/ww/renderer3d/camera.h
+    include/ww/renderer3d/object_instance.h
+    include/ww/renderer3d/renderer3d.h
+    include/ww/renderer3d/result.h
+    include/ww/renderer3d/scene.h
+    include/ww/renderer3d/triangle_mesh.h
 )
 set(RENDERER_SOURCES
-    renderer/camera_def_impl.c
-    renderer/camera.c
-    renderer/object_instance.c
-    renderer/renderer.c
-    renderer/scene.c
-    renderer/triangle_mesh.c
+    renderer3d/camera_def_impl.c
+    renderer3d/camera.c
+    renderer3d/object_instance.c
+    renderer3d/renderer.c
+    renderer3d/scene.c
+    renderer3d/triangle_mesh.c
 )
 
 set(HEADERS
