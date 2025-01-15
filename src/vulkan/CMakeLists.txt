@@ -23,7 +23,6 @@ set(SOURCES
     vulkan_common.c
     vulkan_ext_funcs_linux.c
     vulkan_ext_funcs_win32.c
-    vulkan_renderer.c
     vulkan_viewport_no_gp.c
     vulkan_viewport.c
 )

@@ -31,7 +31,7 @@ set(RENDERER_SOURCES
     renderer3d/camera_def_impl.c
     renderer3d/camera.c
     renderer3d/object_instance.c
-    renderer3d/renderer.c
+    renderer3d/renderer3d.c
     renderer3d/scene.c
     renderer3d/triangle_mesh.c
 )
