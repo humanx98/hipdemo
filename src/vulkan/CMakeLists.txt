@@ -19,13 +19,13 @@ set(HEADERS
 )
 
 set(SOURCES
-    common.c
-    renderer.c
-    viewport_no_gp.c
-    viewport.c
     vma.cpp
-    vulkan_ext_funcs_win32.c
+    vulkan_common.c
     vulkan_ext_funcs_linux.c
+    vulkan_ext_funcs_win32.c
+    vulkan_renderer.c
+    vulkan_viewport_no_gp.c
+    vulkan_viewport.c
 )
 
 add_library(vulkan STATIC ${HEADERS} ${SOURCES})

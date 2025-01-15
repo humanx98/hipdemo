@@ -59,7 +59,7 @@ set(HEADERS
 )
 
 set(SOURCES
-    common.c
+    hip_common.c
     hip_renderer.c
 )
 
