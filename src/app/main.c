@@ -62,7 +62,7 @@ i32 main() {
         .renderer_viewport_memory_interop = true,
         // on windows hip vk semphore interop is unstable
         // I guess it's a hip problem but not sure
-        .renderer_viewport_semaphores_interop = false,
+        .renderer_viewport_semaphore_interop = true,
         .prefer_vsync = false,
     };
     if (app_create(creation_properties, &app).failed) {

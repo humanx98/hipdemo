@@ -29,7 +29,7 @@ typedef struct AppCreationProperties {
     AppViewportType viewport;
     u32 viewport_frames_in_flight;
     b8 renderer_viewport_memory_interop;
-    b8 renderer_viewport_semaphores_interop;
+    b8 renderer_viewport_semaphore_interop;
     b8 prefer_vsync;
 } AppCreationProperties;
 

@@ -28,17 +28,17 @@ typedef struct WwViewportExternalHandle {
     } handle;
 } WwViewportExternalHandle;
 
-typedef struct WwViewportExternalSemaphores {
-    WwViewportExternalHandle wait_for_signal_external_memory_from_viewport;
-    WwViewportExternalHandle signal_external_memory_for_viewport;
-} WwViewportExternalSemaphores;
+typedef struct WwViewportExternalSemaphore {
+    u64* value;
+    WwViewportExternalHandle handle;
+} WwViewportExternalSemaphore;
 
 WW_DEFINE_HANDLE(ww_viewport_ptr);
 typedef WwViewportResult __ww_must_check (*ww_viewport_render_fn)(ww_viewport_ptr ptr);
 typedef WwViewportResult __ww_must_check (*ww_viewport_wait_idle_fn)(ww_viewport_ptr ptr);
 typedef void* __ww_must_check (*ww_viewport_get_mapped_input_fn)(ww_viewport_ptr ptr);
 typedef WwViewportExternalHandle __ww_must_check (*ww_viewport_get_external_memory_fn)(ww_viewport_ptr ptr);
-typedef WwViewportExternalSemaphores __ww_must_check (*ww_viewport_get_external_semaphores_fn)(ww_viewport_ptr ptr);
+typedef WwViewportExternalSemaphore __ww_must_check (*ww_viewport_get_external_semaphore_fn)(ww_viewport_ptr ptr);
 typedef WwViewportResult __ww_must_check (*ww_viewport_set_resolution_fn)(ww_viewport_ptr ptr, u32 width, u32 height);
 typedef void (*ww_viewport_get_resolution_fn)(ww_viewport_ptr ptr, u32* width, u32* height);
 typedef void (*ww_viewport_destroy_fn)(ww_viewport_ptr ptr);
@@ -48,7 +48,7 @@ typedef struct ww_viewport_vtable {
     ww_viewport_wait_idle_fn wait_idle;
     ww_viewport_get_mapped_input_fn get_mapped_input;
     ww_viewport_get_external_memory_fn get_external_memory;
-    ww_viewport_get_external_semaphores_fn get_external_semaphores;
+    ww_viewport_get_external_semaphore_fn get_external_semaphore;
     ww_viewport_set_resolution_fn set_resolution;
     ww_viewport_get_resolution_fn get_resolution;
     ww_viewport_destroy_fn destroy;
@@ -63,7 +63,7 @@ WwViewportResult __ww_must_check ww_viewport_render(WwViewport self);
 WwViewportResult __ww_must_check ww_viewport_wait_idle(WwViewport self);
 void* __ww_must_check ww_viewport_get_mapped_input(WwViewport self);
 WwViewportExternalHandle __ww_must_check ww_viewport_get_external_memory(WwViewport self);
-WwViewportExternalSemaphores __ww_must_check ww_viewport_get_external_semaphores(WwViewport self);
+WwViewportExternalSemaphore __ww_must_check ww_viewport_get_external_semaphore(WwViewport self);
 WwViewportResult __ww_must_check ww_viewport_set_resolution(WwViewport self, u32 width, u32 height);
 void ww_viewport_get_resolution(WwViewport self, u32* width, u32* height);
 void ww_viewport_destroy(WwViewport self);

@@ -12,8 +12,8 @@ extern "C" {
 typedef struct HipRTCreationProperties {
     WwAllocator allocator;
     u32 device_index;
-    b8 external_semaphores;
-    WwViewportExternalSemaphores viewport_external_memory_semaphores;
+    b8 use_viewport_external_semaphore;
+    WwViewportExternalSemaphore viewport_external_memory_semaphore;
 } HipRTCreationProperties;
 
 WwRendererResult __ww_must_check hiprt_renderer_create(HipRTCreationProperties creation_properties, WwRenderer* renderer);

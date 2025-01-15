@@ -332,6 +332,10 @@ VulkanResult vulkan_create_device(VkPhysicalDevice physical_device, const Vulkan
     assert(device);
 
     VkPhysicalDeviceFeatures device_features = {};
+    VkPhysicalDeviceVulkan12Features features12 = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+        .timelineSemaphore = true,
+    };
     VkDeviceCreateInfo device_create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount = create_info->queue_create_info_count,
@@ -341,6 +345,7 @@ VulkanResult vulkan_create_device(VkPhysicalDevice physical_device, const Vulkan
         .ppEnabledExtensionNames = create_info->enabled_extensions,
         .enabledLayerCount = create_info->enabled_layer_count,
         .ppEnabledLayerNames = create_info->enabled_layers,
+        .pNext = &features12,
     };
     return VULKAN_CHECK(vkCreateDevice(physical_device, &device_create_info, NULL, device));
 }

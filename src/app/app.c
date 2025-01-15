@@ -25,7 +25,7 @@ typedef struct App {
     WwAllocator allocator;
     b8 window_resized;
     b8 memory_interop;
-    b8 semaphores_interop;
+    b8 semaphore_interop;
     GLFWwindow* window;
     WwViewport viewport;
     WwRenderer renderer;
@@ -120,7 +120,7 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
         .allocator = creation_properties.allocator,
         .window_resized = true,
         .memory_interop = creation_properties.renderer_viewport_memory_interop,
-        .semaphores_interop = creation_properties.renderer_viewport_semaphores_interop,
+        .semaphore_interop = creation_properties.renderer_viewport_semaphore_interop,
         .triangle_meshes = ww_darray_init(creation_properties.allocator, WwTriangleMesh),
         .object_instances = ww_darray_init(creation_properties.allocator, WwObjectInstance),
         .scale = 1.0f,
@@ -137,7 +137,7 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
         .instance_extension_count = glfw_extension_count,
         .instance_extensions = glfw_extensions,
         .external_memory = creation_properties.renderer_viewport_memory_interop,
-        .external_semaphores = creation_properties.renderer_viewport_semaphores_interop,
+        .external_semaphore = creation_properties.renderer_viewport_semaphore_interop,
         .prefer_vsync = creation_properties.prefer_vsync,
         .window = self->window,
         .vulkan_create_surface = vulkan_create_surface,
@@ -162,10 +162,10 @@ AppResult app_create(AppCreationProperties creation_properties, App** app) {
             HipRTCreationProperties renderer_creation_properties = {
                 .allocator = creation_properties.allocator,
                 .device_index = creation_properties.device_index,
-                .external_semaphores = creation_properties.renderer_viewport_semaphores_interop,
+                .use_viewport_external_semaphore = creation_properties.renderer_viewport_semaphore_interop,
             };
-            if (renderer_creation_properties.external_semaphores) {
-                renderer_creation_properties.viewport_external_memory_semaphores = ww_viewport_get_external_semaphores(self->viewport);
+            if (renderer_creation_properties.use_viewport_external_semaphore) {
+                renderer_creation_properties.viewport_external_memory_semaphore = ww_viewport_get_external_semaphore(self->viewport);
             }
             if (hiprt_renderer_create(renderer_creation_properties, &self->renderer).failed) {
                 goto failed;
@@ -338,7 +338,7 @@ AppResult app_run(App* self) {
                 goto failed;
             }
 
-            if (!self->semaphores_interop && ww_viewport_wait_idle(self->viewport).failed) {
+            if (!self->semaphore_interop && ww_viewport_wait_idle(self->viewport).failed) {
                 goto failed;
             }
 

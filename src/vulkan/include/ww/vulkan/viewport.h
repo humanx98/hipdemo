@@ -12,7 +12,7 @@ typedef struct VulkanViewportCreationProperties {
     u32 instance_extension_count;
     const char** instance_extensions;
     b8 external_memory;
-    b8 external_semaphores;
+    b8 external_semaphore;
     b8 prefer_vsync;
     void* window;
     vulkan_create_surface_fn vulkan_create_surface;

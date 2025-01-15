@@ -7,7 +7,7 @@ static inline void assert_viewport(WwViewport viewport) {
     assert(viewport.vtable->wait_idle);
     assert(viewport.vtable->get_mapped_input);
     assert(viewport.vtable->get_external_memory);
-    assert(viewport.vtable->get_external_semaphores);
+    assert(viewport.vtable->get_external_semaphore);
     assert(viewport.vtable->set_resolution);
     assert(viewport.vtable->get_resolution);
     assert(viewport.vtable->destroy);
@@ -33,9 +33,9 @@ WwViewportExternalHandle ww_viewport_get_external_memory(WwViewport self) {
     return self.vtable->get_external_memory(self.ptr);
 }
 
-WwViewportExternalSemaphores ww_viewport_get_external_semaphores(WwViewport self) {
+WwViewportExternalSemaphore ww_viewport_get_external_semaphore(WwViewport self) {
     assert_viewport(self);
-    return self.vtable->get_external_semaphores(self.ptr);
+    return self.vtable->get_external_semaphore(self.ptr);
 }
 
 WwViewportResult ww_viewport_set_resolution(WwViewport self, u32 width, u32 height) {
