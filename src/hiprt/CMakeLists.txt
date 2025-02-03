@@ -9,35 +9,38 @@ endif()
 find_package(hip REQUIRED)
 string(REGEX MATCH "([0-9]+\\.[0-9]+)" hip_MAJOR_MINOR_VERSION ${hip_VERSION})
 
-find_file(HIPCC_EXECUTABLE hipcc HINTS ${ROCM_PATH} PATH_SUFFIXES bin)
-if(NOT HIPCC_EXECUTABLE)
-    message(FATAL_ERROR "hipcc is missing")
-endif()
-
+find_file(HIPCC_EXECUTABLE hipcc HINTS ${ROCM_PATH} PATH_SUFFIXES bin REQUIRED)
 find_file(HIP_LINKER_EXECUTABLE amdclang++ HINTS ${ROCM_PATH} PATH_SUFFIXES bin)
 if (NOT HIP_LINKER_EXECUTABLE)
     set(HIP_LINKER_EXECUTABLE ${HIPCC_EXECUTABLE})
 endif()
 
-set(hiprt_DIR "${CMAKE_SOURCE_DIR}/submodules/hiprt")
-set(hiprt_INCLUDE_DIR "${hiprt_DIR}")
-set(hiprt_LIB_DIR "${hiprt_DIR}/dist/bin/Release")
-set(hiprt_HIPFB "${hiprt_LIB_DIR}/hiprt02003_${hip_MAJOR_MINOR_VERSION}_amd.hipfb")
+set(hiprt_DIR ${CMAKE_SOURCE_DIR}/submodules/hiprt)
+set(hiprt_INCLUDE_DIR ${hiprt_DIR})
+set(hiprt_LIB_DIR ${hiprt_DIR}/dist/bin/Release)
+set(hiprt_PLATFORM)
+
+add_library(hiprt::include IMPORTED INTERFACE)
+target_include_directories(hiprt::include INTERFACE ${hiprt_INCLUDE_DIR})
+
+add_library(hiprt::library IMPORTED SHARED)
 if(UNIX)
-    set(hiprt_LIB "${hiprt_LIB_DIR}/libhiprt0200364.so")
-    set(hiprt_BITCODE "${hiprt_LIB_DIR}/hiprt02003_${hip_MAJOR_MINOR_VERSION}_amd_lib_linux.bc")
+    set(hiprt_PLATFORM linux)
+    find_library(hiprt_LIB hiprt0200464 HINTS ${hiprt_LIB_DIR} REQUIRED)
+    set_target_properties(hiprt::library PROPERTIES IMPORTED_LOCATION ${hiprt_LIB})
 else()
-    set(hiprt_LIB "${hiprt_LIB_DIR}/hiprt0200364.lib")
-    set(hiprt_BITCODE "${hiprt_LIB_DIR}/hiprt02003_${hip_MAJOR_MINOR_VERSION}_amd_lib_win.bc")
+    set(hiprt_PLATFORM win)
+    find_library(hiprt_LIB hiprt0200464 HINTS ${hiprt_LIB_DIR} REQUIRED)
+    find_file(hiprt_DLL hiprt0200464.dll HINTS ${hiprt_LIB_DIR} REQUIRED)
+    set_target_properties(hiprt::library PROPERTIES IMPORTED_IMPLIB ${hiprt_LIB})
+    set_target_properties(hiprt::library PROPERTIES IMPORTED_LOCATION ${hiprt_DLL})
 endif()
+find_file(hiprt_BITCODE hiprt02004_${hip_MAJOR_MINOR_VERSION}_amd_lib_${hiprt_PLATFORM}.bc HINTS ${hiprt_LIB_DIR} REQUIRED)
+find_file(hiprt_HIPFB hiprt02004_${hip_MAJOR_MINOR_VERSION}_amd.hipfb HINTS ${hiprt_LIB_DIR} REQUIRED)
+find_file(oro_compiled_kernels_HIPFB oro_compiled_kernels.hipfb HINTS ${hiprt_LIB_DIR} REQUIRED)
 
-if (NOT EXISTS ${hiprt_LIB})
-    message(FATAL_ERROR "Couldn't find ${hiprt_LIB}. HIPRT should be built manually")
-endif()
-
-if (NOT EXISTS ${hiprt_BITCODE})
-    message(FATAL_ERROR "Couldn't find ${hiprt_BITCODE}. HIPRT should be built manually")
-endif()
+add_library(hiprt IMPORTED INTERFACE)
+target_link_libraries(hiprt INTERFACE hiprt::include hiprt::library)
 
 # set(hip_binaries_arch 
 #     gfx1100 gfx1101 gfx1102 gfx1103 gfx1150 gfx1151  # Navi3
@@ -93,6 +96,7 @@ else()
         COMMAND  ${HIPCC_EXECUTABLE}  ${hiprt_renderer_kernel_compile_options}
         COMMAND ${HIP_LINKER_EXECUTABLE} ${hiprt_renderer_link_options}
         COMMAND ${CMAKE_COMMAND} -E copy ${hiprt_HIPFB} ${hiprt_renderer_hip_bin_dir}
+        COMMAND ${CMAKE_COMMAND} -E copy ${oro_compiled_kernels_HIPFB} ${hiprt_renderer_hip_bin_dir}
         COMMENT "Compiling hiprt kernels"
     )
 endif()
@@ -118,12 +122,11 @@ add_library(hiprt_renderer STATIC ${HEADERS} ${SOURCES})
 add_dependencies(hiprt_renderer hiprt_renderer_kernel)
 
 target_include_directories(hiprt_renderer 
-    PUBLIC ${hiprt_INCLUDE_DIR}
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 target_link_libraries(hiprt_renderer
     ww_core
-    ${hiprt_LIB}
+    hiprt
     hip::host
     hip_renderer
 )

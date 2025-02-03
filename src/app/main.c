@@ -16,7 +16,7 @@ i32 main() {
     i32 retvalue = 0;
 #ifdef NDEBUG
 #include <ww/allocators/std_allocator.h>
-    WwAllocator allocator = std_allocator();
+    WwAllocator allocator = ww_std_allocator();
 #else
 #include <ww/allocators/safe_allocator.h>
     WwSafeAllocator safe_allocator = ww_safe_allocator_init();
@@ -60,8 +60,6 @@ i32 main() {
         .viewport = APP_VIEWPORT_VK_NO_GRAPHICS_PIPELINE,
         .viewport_frames_in_flight = 2, 
         .renderer_viewport_memory_interop = true,
-        // on windows hip vk semphore interop is unstable
-        // I guess it's a hip problem but not sure
         .renderer_viewport_semaphore_interop = true,
         .prefer_vsync = false,
     };

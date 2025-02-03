@@ -69,7 +69,7 @@ WwRenderer3DResult hiprt_triangle_mesh_init(ww_triangle_mesh_ptr self, WwTriangl
 
     usize geom_temp_size;
     hiprtBuildOptions options = {
-        .buildFlags = hiprtBuildFlagBitPreferFastBuild,
+        .buildFlags = hiprtBuildFlagBitPreferHighQualityBuild,
     };
     res = HIPRT_CHECK(hiprtGetGeometryBuildTemporaryBufferSize(self->context.hiprt, geom_input, options, geom_temp_size));
     if (res.failed) {
@@ -84,6 +84,7 @@ WwRenderer3DResult hiprt_triangle_mesh_init(ww_triangle_mesh_ptr self, WwTriangl
     if (res.failed) {
         return res;
     }
+
     res = HIPRT_CHECK(hiprtBuildGeometry(self->context.hiprt, hiprtBuildOperationBuild, geom_input, options, self->geometry_temp, 0, self->geometry));
     if (res.failed) {
         return res;

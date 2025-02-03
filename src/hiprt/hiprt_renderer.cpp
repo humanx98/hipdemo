@@ -127,8 +127,9 @@ WwRenderer3DResult hiprt_renderer_init(ww_renderer3d_ptr self, HipRTCreationProp
         return res;
     }
 
-    hiprtSetCacheDirPath(self->context.hiprt, "hip_spv_bin");
-    res = HIP_CHECK(hipModuleLoad(&self->module, "hip_spv_bin/hiprt_renderer.hipfb"));
+    // doesn't work anymore
+    // hiprtSetCacheDirPath(self->context.hiprt, "hip_spv_bin");
+    res = HIP_CHECK(hipModuleLoad(&self->module, "hiprt_renderer.hipfb"));
     if (res.failed) {
         return res;
     }

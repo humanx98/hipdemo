@@ -80,7 +80,7 @@ WwRenderer3DResult hip_renderer_init(ww_renderer3d_ptr self, HipCreationProperti
         return res;
     }
 
-    res = HIP_CHECK(hipModuleLoad(&self->module, "hip_spv_bin/hip_renderer.hipfb"));
+    res = HIP_CHECK(hipModuleLoad(&self->module, "hip_renderer.hipfb"));
     if (res.failed) {
         return res;
     }
